@@ -1,9 +1,15 @@
 package system_test
 
 import (
+	"context"
+	"io"
 	"testing"
-)
 
+	"google.golang.org/grpc"
+
+	spb "github.com/openconfig/gnoi/system"
+	"github.com/openconfig/gnoigo"
+)
 
 type fakeSystemClient struct {
 	spb.SystemClient

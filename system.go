@@ -5,8 +5,8 @@ import (
 	"context"
 	"io"
 
-	spb "google3/third_party/openconfig/gnoi/system/system_go_proto"
-	tpb "google3/third_party/openconfig/gnoi/types/types_go_proto"
+	spb "github.com/openconfig/gnoi/system"
+	tpb "github.com/openconfig/gnoi/types"
 )
 
 // Operation will be any operation from the system client.
@@ -14,7 +14,7 @@ type Operation[T any] interface {
 	execute(context.Context, spb.SystemClient) (T, error)
 }
 
-// Execute function takes input from "Operation" (which is equivalent to the request proto) 
+// Execute function takes input from "Operation" (which is equivalent to the request proto)
 // and returns the response proto based on Operation.
 // E.g. `PingOperation` returns `spb.PingResponse`.
 func Execute[T any](ctx context.Context, sc spb.SystemClient, so Operation[T]) (T, error) {
@@ -104,4 +104,3 @@ func (p *PingOperation) execute(ctx context.Context, sc spb.SystemClient) ([]*sp
 		}
 	}
 }
-
