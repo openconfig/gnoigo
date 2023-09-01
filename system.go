@@ -9,48 +9,84 @@ import (
 	tpb "google3/third_party/openconfig/gnoi/types/types_go_proto"
 )
 
-// Client is the client used to access operations from system service.
-type Client struct {
-	Client spb.SystemClient
-}
-
-// Operation will be any X operation from the system client
+// Operation will be any operation from the system client.
 type Operation[T any] interface {
-	execute(context.Context, *Client) (T, error)
+	execute(context.Context, spb.SystemClient) (T, error)
 }
 
 // Execute function takes input from "Operation" (which is equivalent to the request proto) 
 // and returns the response proto based on Operation.
 // E.g. `PingOperation` returns `spb.PingResponse`.
-func Execute[T any](ctx context.Context, sc *Client, so Operation[T]) (T, error) {
+func Execute[T any](ctx context.Context, sc spb.SystemClient, so Operation[T]) (T, error) {
 	return so.execute(ctx, sc)
 }
 
 // PingOperation represents fields of `PingRequest` proto.
 type PingOperation struct {
-	destination   string
-	source        string
-	count         int32
-	interval      int64
-	wait          int64
-	size          int32
-	doNotFragment bool
-	doNotResolve  bool
-	l3Protocol    tpb.L3Protocol
+	req *spb.PingRequest
 }
 
-func (p *PingOperation) execute(ctx context.Context, sc *Client) ([]*spb.PingResponse, error) {
-	ping, err := sc.Client.Ping(ctx, &spb.PingRequest{
-		Destination:   p.destination,
-		Source:        p.source,
-		Count:         p.count,
-		Interval:      p.interval,
-		Wait:          p.wait,
-		Size:          p.size,
-		DoNotFragment: p.doNotFragment,
-		DoNotResolve:  p.doNotResolve,
-		L3Protocol:    p.l3Protocol,
-	})
+// NewPingOperation is a PingOperation with empty PingRequest.
+func NewPingOperation() *PingOperation {
+	return &PingOperation{req: &spb.PingRequest{}}
+}
+
+// Destination specifies the address to ping.
+func (p *PingOperation) Destination(dst string) *PingOperation {
+	p.req.Destination = dst
+	return p
+}
+
+// Source specifies the address to ping from.
+func (p *PingOperation) Source(src string) *PingOperation {
+	p.req.Source = src
+	return p
+}
+
+// Count specifies the number of packets.
+func (p *PingOperation) Count(c int32) *PingOperation {
+	p.req.Count = c
+	return p
+}
+
+// Interval specifies the nanoseconds between ping requests.
+func (p *PingOperation) Interval(i int64) *PingOperation {
+	p.req.Interval = i
+	return p
+}
+
+// Wait specifies nanoseconds to wait for a response.
+func (p *PingOperation) Wait(w int64) *PingOperation {
+	p.req.Wait = w
+	return p
+}
+
+// Size specifies the size of request packet (excluding ICMP header).
+func (p *PingOperation) Size(s int32) *PingOperation {
+	p.req.Size = s
+	return p
+}
+
+// DoNotFragment sets the do not fragment bit (IPv4 destinations).
+func (p *PingOperation) DoNotFragment(dnf bool) *PingOperation {
+	p.req.DoNotFragment = dnf
+	return p
+}
+
+// DoNotResolve specifies if address returned should be resolved.
+func (p *PingOperation) DoNotResolve(dnr bool) *PingOperation {
+	p.req.DoNotResolve = dnr
+	return p
+}
+
+// L3Protocol specifies layer3 protocol for the ping.
+func (p *PingOperation) L3Protocol(l3p tpb.L3Protocol) *PingOperation {
+	p.req.L3Protocol = l3p
+	return p
+}
+
+func (p *PingOperation) execute(ctx context.Context, sc spb.SystemClient) ([]*spb.PingResponse, error) {
+	ping, err := sc.Ping(ctx, p.req)
 	if err != nil {
 		return nil, err
 	}
@@ -65,50 +101,6 @@ func (p *PingOperation) execute(ctx context.Context, sc *Client) ([]*spb.PingRes
 			return nil, err
 		default:
 			pingResp = append(pingResp, resp)
-		}
-	}
-}
-
-// TracerouteOperation represents fields of TracerouteRequest proto.
-type TracerouteOperation struct {
-	source         string
-	destination    string
-	initialTTL     uint32
-	maxTTL         int32
-	wait           int64
-	doNotFragment  bool
-	doNotResolve   bool
-	l3Protocol     tpb.L3Protocol
-	l4Protocol     spb.TracerouteRequest_L4Protocol
-	doNotLookupAsn bool
-}
-
-func (t *TracerouteOperation) execute(ctx context.Context, sc *Client) ([]*spb.TracerouteResponse, error) {
-	traceroute, err := sc.Client.Traceroute(ctx, &spb.TracerouteRequest{
-		Source:        t.source,
-		Destination:   t.destination,
-		InitialTtl:    t.initialTTL,
-		MaxTtl:        t.maxTTL,
-		Wait:          t.wait,
-		DoNotFragment: t.doNotFragment,
-		DoNotResolve:  t.doNotResolve,
-		L3Protocol:    t.l3Protocol,
-		L4Protocol:    t.l4Protocol,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	traceResp := []*spb.TracerouteResponse{}
-	for {
-		resp, err := traceroute.Recv()
-		switch {
-		case err == io.EOF:
-			return traceResp, nil
-		case err != nil:
-			return nil, err
-		default:
-			traceResp = append(traceResp, resp)
 		}
 	}
 }
