@@ -16,7 +16,7 @@ type PingOperation struct {
 	req *spb.PingRequest
 }
 
-// NewPingOperation is a PingOperation with empty PingRequest.
+// NewPingOperation creates a PingOperation with empty PingRequest.
 func NewPingOperation() *PingOperation {
 	return &PingOperation{req: &spb.PingRequest{}}
 }
