@@ -7,21 +7,11 @@ import (
 
 	spb "github.com/openconfig/gnoi/system"
 	tpb "github.com/openconfig/gnoi/types"
+
+	"github.com/openconfig/gnoigo"
 )
 
-// Operation will be any operation from the system client.
-type Operation[T any] interface {
-	execute(context.Context, spb.SystemClient) (T, error)
-}
-
-// Execute function takes input from "Operation" (which is equivalent to the request proto)
-// and returns the response proto based on Operation.
-// E.g. `PingOperation` returns `spb.PingResponse`.
-func Execute[T any](ctx context.Context, sc spb.SystemClient, so Operation[T]) (T, error) {
-	return so.execute(ctx, sc)
-}
-
-// PingOperation represents fields of `PingRequest` proto.
+// PingOperation represents input fields required to perform a Ping operation.
 type PingOperation struct {
 	req *spb.PingRequest
 }
@@ -85,13 +75,14 @@ func (p *PingOperation) L3Protocol(l3p tpb.L3Protocol) *PingOperation {
 	return p
 }
 
-func (p *PingOperation) execute(ctx context.Context, sc spb.SystemClient) ([]*spb.PingResponse, error) {
-	ping, err := sc.Ping(ctx, p.req)
+func (p *PingOperation) Execute(ctx context.Context, c gnoigo.Clients) ([]*spb.PingResponse, error) {
+	ping, err := c.System().Ping(ctx, p.req)
 	if err != nil {
 		return nil, err
 	}
 
-	pingResp := []*spb.PingResponse{}
+	var pingResp []*spb.PingResponse
+
 	for {
 		resp, err := ping.Recv()
 		switch {

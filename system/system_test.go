@@ -9,7 +9,21 @@ import (
 
 	spb "github.com/openconfig/gnoi/system"
 	"github.com/openconfig/gnoigo"
+	"github.com/openconfig/gnoigo/system"
 )
+
+type fakeClients struct {
+	gnoigo.Clients
+	SystemFn func() spb.SystemClient
+}
+
+func (f *fakeClients) Client() gnoigo.Clients {
+	return f
+}
+
+func (f *fakeClients) System() spb.SystemClient {
+	return f.SystemFn()
+}
 
 type fakeSystemClient struct {
 	spb.SystemClient
@@ -49,12 +63,17 @@ func TestPing(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
-			var fakeClient fakeSystemClient
+			var fakeClient fakeClients
 			var got string
-			fakeClient.PingFn = func(_ context.Context, req *spb.PingRequest, _ ...grpc.CallOption) (spb.System_PingClient, error) {
-				got = req.GetDestination()
-				return &fakePingClient{resp: &spb.PingResponse{Source: tt.src, Sent: tt.count, Received: tt.count}}, nil
+			fakeClient.SystemFn = func() spb.SystemClient {
+				return &fakeSystemClient{
+					PingFn: func(_ context.Context, req *spb.PingRequest, _ ...grpc.CallOption) (spb.System_PingClient, error) {
+						got = req.GetDestination()
+						return &fakePingClient{resp: &spb.PingResponse{Source: tt.src, Sent: tt.count, Received: tt.count}}, nil
+					},
+				}
 			}
+
 			want := tt.dst
 
 			pingOp := system.NewPingOperation().
@@ -62,7 +81,7 @@ func TestPing(t *testing.T) {
 				Source(tt.src).
 				Count(tt.count)
 
-			responses, err := system.Execute(context.Background(), fakeClient.System(), pingOp)
+			responses, err := gnoigo.Execute(context.Background(), fakeClient.Client(), pingOp)
 
 			if got != want {
 				t.Errorf("Operate(t) got %s, want %s", got, want)
