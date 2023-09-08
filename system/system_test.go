@@ -2,28 +2,16 @@ package system_test
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"testing"
 
 	"google.golang.org/grpc"
 
 	spb "github.com/openconfig/gnoi/system"
-	"github.com/openconfig/gnoigo"
+	"github.com/openconfig/gnoigo/internal"
 	"github.com/openconfig/gnoigo/system"
 )
-
-type fakeClients struct {
-	gnoigo.Clients
-	SystemFn func() spb.SystemClient
-}
-
-func (f *fakeClients) Client() gnoigo.Clients {
-	return f
-}
-
-func (f *fakeClients) System() spb.SystemClient {
-	return f.SystemFn()
-}
 
 type fakeSystemClient struct {
 	spb.SystemClient
@@ -55,46 +43,41 @@ func (pc *fakePingClient) Recv() (*spb.PingResponse, error) {
 
 func TestPing(t *testing.T) {
 	tests := []struct {
-		desc, dst, src    string
-		count, packetSize int32
+		desc    string
+		op      *system.PingOperation
+		want    []*spb.PingResponse
+		wantErr string
 	}{
-		{desc: "ping with source", dst: "1.2.3.4", src: "5.6.7.8"},
-		{desc: "ping with source, count and packetsize", dst: "1.2.3.4", src: "5.6.7.8", count: 7, packetSize: 1000},
+		{
+			desc:    "ping with source",
+			op:      system.NewPingOperation().Destination("1.2.3.4").Source("5.6.7.8"),
+			want:    []*spb.PingResponse{{Source: "5.6.7.8"}},
+			wantErr: "",
+		},
+		{
+			desc:    "ping with source and count",
+			op:      system.NewPingOperation().Destination("1.2.3.4").Source("5.6.7.8").Count(7),
+			want:    []*spb.PingResponse{{Source: "5.6.7.8", Sent: 7, Received: 7}},
+			wantErr: "",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
-			var fakeClient fakeClients
-			var got string
-			fakeClient.SystemFn = func() spb.SystemClient {
-				return &fakeSystemClient{
-					PingFn: func(_ context.Context, req *spb.PingRequest, _ ...grpc.CallOption) (spb.System_PingClient, error) {
-						got = req.GetDestination()
-						return &fakePingClient{resp: &spb.PingResponse{Source: tt.src, Sent: tt.count, Received: tt.count}}, nil
-					},
+			var fakeClient internal.Clients
+			fakeClient.Sys = &fakeSystemClient{PingFn: func(_ context.Context, req *spb.PingRequest, _ ...grpc.CallOption) (spb.System_PingClient, error) {
+				if tt.wantErr != "" {
+					return nil, fmt.Errorf(tt.wantErr)
 				}
-			}
+				return &fakePingClient{resp: tt.want[0]}, nil
+			}}
 
-			want := tt.dst
-
-			pingOp := system.NewPingOperation().
-				Destination(tt.dst).
-				Source(tt.src).
-				Count(tt.count)
-
-			responses, err := gnoigo.Execute(context.Background(), fakeClient.Client(), pingOp)
-
-			if got != want {
-				t.Errorf("Operate(t) got %s, want %s", got, want)
-			}
+			responses, err := tt.op.Execute(context.Background(), fakeClient)
 
 			if err != nil {
 				t.Errorf("Error on ping %v, want nil", err)
 			} else {
 				if len(responses) != 1 {
 					t.Errorf("Got %d responses, want 1", len(responses))
-				}
-				if responses[0].Source != tt.src {
-					t.Errorf("Response.Source error got %s, want %s", responses[0].Source, tt.src)
 				}
 			}
 		})

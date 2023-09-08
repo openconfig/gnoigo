@@ -1,4 +1,4 @@
-// Package system gives apis for system operations.
+// Package system provides gNOI system operations.
 package system
 
 import (
@@ -8,7 +8,7 @@ import (
 	spb "github.com/openconfig/gnoi/system"
 	tpb "github.com/openconfig/gnoi/types"
 
-	"github.com/openconfig/gnoigo"
+	"github.com/openconfig/gnoigo/internal"
 )
 
 // PingOperation represents input fields required to perform a Ping operation.
@@ -75,7 +75,7 @@ func (p *PingOperation) L3Protocol(l3p tpb.L3Protocol) *PingOperation {
 	return p
 }
 
-func (p *PingOperation) Execute(ctx context.Context, c gnoigo.Clients) ([]*spb.PingResponse, error) {
+func (p *PingOperation) Execute(ctx context.Context, c internal.Clients) ([]*spb.PingResponse, error) {
 	ping, err := c.System().Ping(ctx, p.req)
 	if err != nil {
 		return nil, err
