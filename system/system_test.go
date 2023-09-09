@@ -49,16 +49,19 @@ func TestPing(t *testing.T) {
 		wantErr string
 	}{
 		{
-			desc:    "ping with source",
-			op:      system.NewPingOperation().Destination("1.2.3.4").Source("5.6.7.8"),
-			want:    []*spb.PingResponse{{Source: "5.6.7.8"}},
-			wantErr: "",
+			desc: "ping with source",
+			op:   system.NewPingOperation().Destination("1.2.3.4").Source("5.6.7.8"),
+			want: []*spb.PingResponse{{Source: "5.6.7.8"}},
 		},
 		{
-			desc:    "ping with source and count",
+			desc: "ping with source and count",
+			op:   system.NewPingOperation().Destination("1.2.3.4").Source("5.6.7.8").Count(7),
+			want: []*spb.PingResponse{{Source: "5.6.7.8", Sent: 7, Received: 7}},
+		},
+		{
+			desc:    "ping returns error",
 			op:      system.NewPingOperation().Destination("1.2.3.4").Source("5.6.7.8").Count(7),
-			want:    []*spb.PingResponse{{Source: "5.6.7.8", Sent: 7, Received: 7}},
-			wantErr: "",
+			wantErr: "ping operation error",
 		},
 	}
 	for _, tt := range tests {
@@ -73,13 +76,20 @@ func TestPing(t *testing.T) {
 
 			responses, err := tt.op.Execute(context.Background(), fakeClient)
 
-			if err != nil {
-				t.Errorf("Error on ping %v, want nil", err)
+			if tt.wantErr == "" {
+				if err != nil {
+					t.Errorf("Error on ping %v, want nil", err)
+				} else {
+					if len(responses) != 1 {
+						t.Errorf("Got %d responses, want 1", len(responses))
+					}
+				}
 			} else {
-				if len(responses) != 1 {
-					t.Errorf("Got %d responses, want 1", len(responses))
+				if err == nil {
+					t.Errorf("Error expected on ping, want error %v", tt.wantErr)
 				}
 			}
+
 		})
 	}
 
