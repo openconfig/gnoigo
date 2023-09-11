@@ -75,7 +75,7 @@ func (p *PingOperation) L3Protocol(l3p tpb.L3Protocol) *PingOperation {
 	return p
 }
 
-func (p *PingOperation) Execute(ctx context.Context, c internal.Clients) ([]*spb.PingResponse, error) {
+func (p *PingOperation) Execute(ctx context.Context, c *internal.Clients) ([]*spb.PingResponse, error) {
 	ping, err := c.System().Ping(ctx, p.req)
 	if err != nil {
 		return nil, err
