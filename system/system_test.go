@@ -83,11 +83,9 @@ func TestPing(t *testing.T) {
 			}}
 
 			got, gotErr := tt.op.Execute(context.Background(), &fakeClient)
-
 			if (gotErr == nil) != (tt.wantErr == "") || (gotErr != nil && !strings.Contains(gotErr.Error(), tt.wantErr)) {
 				t.Errorf("Execute() got unexpected error %v want %s", gotErr, tt.wantErr)
 			}
-
 			if diff := cmp.Diff(tt.want, got, protocmp.Transform()); diff != "" {
 				t.Errorf("Execute() got unexpected response diff (-want +got): %s", diff)
 			}
