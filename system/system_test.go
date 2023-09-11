@@ -4,10 +4,13 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"strings"
 	"testing"
 
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/testing/protocmp"
 
+	"github.com/google/go-cmp/cmp"
 	spb "github.com/openconfig/gnoi/system"
 	"github.com/openconfig/gnoigo/internal"
 	"github.com/openconfig/gnoigo/system"
@@ -79,22 +82,15 @@ func TestPing(t *testing.T) {
 				return &fakePingClient{resp: tt.want}, nil
 			}}
 
-			responses, err := tt.op.Execute(context.Background(), &fakeClient)
+			got, gotErr := tt.op.Execute(context.Background(), &fakeClient)
 
-			if tt.wantErr == "" {
-				if err != nil {
-					t.Errorf("Execute() got error on ping %v, want nil", err)
-				} else {
-					if len(responses) != len(tt.want) {
-						t.Errorf("Execute() got unexpected response length, got %d, want %d", len(responses), len(tt.want))
-					}
-				}
-			} else {
-				if err == nil {
-					t.Errorf("Execute() did not match error expected on ping, want error %v", tt.wantErr)
-				}
+			if (gotErr == nil) != (tt.wantErr == "") || (gotErr != nil && !strings.Contains(gotErr.Error(), tt.wantErr)) {
+				t.Errorf("Execute() got unexpected error %v want %s", gotErr, tt.wantErr)
 			}
 
+			if diff := cmp.Diff(tt.want, got, protocmp.Transform()); diff != "" {
+				t.Errorf("Execute() got unexpected response diff (-want +got): %s", diff)
+			}
 		})
 	}
 

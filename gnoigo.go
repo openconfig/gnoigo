@@ -62,8 +62,29 @@ type Operation[T any] interface {
 	Execute(context.Context, *internal.Clients) (T, error)
 }
 
+func toInternalClients(c Clients) *internal.Clients {
+	if ic, ok := c.(*internal.Clients); ok {
+		return ic
+	}
+	return &internal.Clients{
+		BGPClient:              c.BGP(),
+		CertMgmtClient:         c.CertificateManagement(),
+		DiagClient:             c.Diag(),
+		FactoryResetClient:     c.FactoryReset(),
+		FileClient:             c.File(),
+		HealthzClient:          c.Healthz(),
+		Layer2Client:           c.Layer2(),
+		LinkQualClient:         c.LinkQualification(),
+		MPLSClient:             c.MPLS(),
+		OSClient:               c.OS(),
+		OTDRClient:             c.OTDR(),
+		SystemClient:           c.System(),
+		WavelengthRouterClient: c.WavelengthRouter(),
+	}
+}
+
 // Execute performs an operation and returns one or more response protos.
 // For example, a PingOperation returns a slice of PingResponse messages.
 func Execute[T any](ctx context.Context, c Clients, op Operation[T]) (T, error) {
-	return op.Execute(ctx, c.(*internal.Clients))
+	return op.Execute(ctx, toInternalClients(c))
 }
