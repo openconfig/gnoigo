@@ -24,19 +24,19 @@ import (
 // NewClients constructs all the gNOI clients.
 func NewClients(conn *grpc.ClientConn) Clients {
 	return &internal.Clients{
-		Bgp:            bpb.NewBGPClient(conn),
-		CertManagement: cmpb.NewCertificateManagementClient(conn),
-		Diagnostic:     dpb.NewDiagClient(conn),
-		Factory:        frpb.NewFactoryResetClient(conn),
-		FileClient:     fpb.NewFileClient(conn),
-		Hz:             hpb.NewHealthzClient(conn),
-		L2:             lpb.NewLayer2Client(conn),
-		LinkQual:       plqpb.NewLinkQualificationClient(conn),
-		Mpls:           mpb.NewMPLSClient(conn),
-		Os:             ospb.NewOSClient(conn),
-		Otdr:           otpb.NewOTDRClient(conn),
-		Sys:            spb.NewSystemClient(conn),
-		WavelengthR:    wrpb.NewWavelengthRouterClient(conn),
+		BGPClient:              bpb.NewBGPClient(conn),
+		CertMgmtClient:         cmpb.NewCertificateManagementClient(conn),
+		DiagClient:             dpb.NewDiagClient(conn),
+		FactoryResetClient:     frpb.NewFactoryResetClient(conn),
+		FileClient:             fpb.NewFileClient(conn),
+		HealthzClient:          hpb.NewHealthzClient(conn),
+		Layer2Client:           lpb.NewLayer2Client(conn),
+		LinkQualClient:         plqpb.NewLinkQualificationClient(conn),
+		MPLSClient:             mpb.NewMPLSClient(conn),
+		OSClient:               ospb.NewOSClient(conn),
+		OTDRClient:             otpb.NewOTDRClient(conn),
+		SystemClient:           spb.NewSystemClient(conn),
+		WavelengthRouterClient: wrpb.NewWavelengthRouterClient(conn),
 	}
 }
 
