@@ -28,16 +28,16 @@ func (fg *fakeSystemClient) Ping(ctx context.Context, in *spb.PingRequest, opts 
 
 type fakePingClient struct {
 	spb.System_PingClient
-	resp *spb.PingResponse
+	resp []*spb.PingResponse
 	err  error
 }
 
 func (pc *fakePingClient) Recv() (*spb.PingResponse, error) {
-	if pc.resp == nil && pc.err == nil {
+	if len(pc.resp) == 0 && pc.err == nil {
 		return nil, io.EOF
 	}
-	resp := pc.resp
-	pc.resp = nil
+	resp := pc.resp[0]
+	pc.resp = pc.resp[1:]
 	return resp, pc.err
 }
 
@@ -59,6 +59,11 @@ func TestPing(t *testing.T) {
 			want: []*spb.PingResponse{{Source: "5.6.7.8", Sent: 7, Received: 7}},
 		},
 		{
+			desc: "ping with multiple response",
+			op:   system.NewPingOperation().Destination("1.2.3.4").Source("5.6.7.8").Count(7),
+			want: []*spb.PingResponse{{Source: "5.6.7.8", Sent: 1, Received: 1}, {Source: "5.6.7.8", Sent: 2, Received: 2}},
+		},
+		{
 			desc:    "ping returns error",
 			op:      system.NewPingOperation().Destination("1.2.3.4").Source("5.6.7.8").Count(7),
 			wantErr: "ping operation error",
@@ -67,26 +72,26 @@ func TestPing(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
 			var fakeClient internal.Clients
-			fakeClient.Sys = &fakeSystemClient{PingFn: func(_ context.Context, req *spb.PingRequest, _ ...grpc.CallOption) (spb.System_PingClient, error) {
+			fakeClient.SystemClient = &fakeSystemClient{PingFn: func(_ context.Context, req *spb.PingRequest, _ ...grpc.CallOption) (spb.System_PingClient, error) {
 				if tt.wantErr != "" {
 					return nil, fmt.Errorf(tt.wantErr)
 				}
-				return &fakePingClient{resp: tt.want[0]}, nil
+				return &fakePingClient{resp: tt.want}, nil
 			}}
 
-			responses, err := tt.op.Execute(context.Background(), fakeClient)
+			responses, err := tt.op.Execute(context.Background(), &fakeClient)
 
 			if tt.wantErr == "" {
 				if err != nil {
-					t.Errorf("Error on ping %v, want nil", err)
+					t.Errorf("Execute() got error on ping %v, want nil", err)
 				} else {
-					if len(responses) != 1 {
-						t.Errorf("Got %d responses, want 1", len(responses))
+					if len(responses) != len(tt.want) {
+						t.Errorf("Execute() got unexpected response length, got %d, want %d", len(responses), len(tt.want))
 					}
 				}
 			} else {
 				if err == nil {
-					t.Errorf("Error expected on ping, want error %v", tt.wantErr)
+					t.Errorf("Execute() did not match error expected on ping, want error %v", tt.wantErr)
 				}
 			}
 

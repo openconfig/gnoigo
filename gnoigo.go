@@ -59,7 +59,7 @@ type Clients interface {
 
 // Operation represents any gNOI operation.
 type Operation[T any] interface {
-	Execute(context.Context, Clients) (T, error)
+	Execute(context.Context, *internal.Clients) (T, error)
 }
 
 // Execute performs an operation and returns one or more response protos.

@@ -1,3 +1,4 @@
+// Package internal provides gnoigo structs that are not used in publically.
 package internal
 
 import (
@@ -18,39 +19,39 @@ import (
 
 // Clients contains all gNOI clients.
 type Clients struct {
-	Bgp            bpb.BGPClient
-	CertManagement cmpb.CertificateManagementClient
-	Diagnostic     dpb.DiagClient
-	Factory        frpb.FactoryResetClient
-	FileClient     fpb.FileClient
-	Hz             hpb.HealthzClient
-	L2             lpb.Layer2Client
-	LinkQual       plqpb.LinkQualificationClient
-	Mpls           mpb.MPLSClient
-	Os             ospb.OSClient
-	Otdr           otpb.OTDRClient
-	Sys            spb.SystemClient
-	WavelengthR    wrpb.WavelengthRouterClient
+	BGPClient              bpb.BGPClient
+	CertMgmtClient         cmpb.CertificateManagementClient
+	DiagClient             dpb.DiagClient
+	FactoryResetClient     frpb.FactoryResetClient
+	FileClient             fpb.FileClient
+	HealthzClient          hpb.HealthzClient
+	Layer2Client           lpb.Layer2Client
+	LinkQualClient         plqpb.LinkQualificationClient
+	MPLSClient             mpb.MPLSClient
+	OSClient               ospb.OSClient
+	OTDRClient             otpb.OTDRClient
+	SystemClient           spb.SystemClient
+	WavelengthRouterClient wrpb.WavelengthRouterClient
 }
 
 // BGP returns the client for gNOI BGP service.
 func (c *Clients) BGP() bpb.BGPClient {
-	return c.Bgp
+	return c.BGPClient
 }
 
 // CertificateManagement returns the client for gNOI Certificate Management service.
 func (c *Clients) CertificateManagement() cmpb.CertificateManagementClient {
-	return c.CertManagement
+	return c.CertMgmtClient
 }
 
 // Diag returns the client for gNOI Diag service.
 func (c *Clients) Diag() dpb.DiagClient {
-	return c.Diagnostic
+	return c.DiagClient
 }
 
 // FactoryReset returns the client for gNOI FactoryReset service.
 func (c *Clients) FactoryReset() frpb.FactoryResetClient {
-	return c.Factory
+	return c.FactoryResetClient
 }
 
 // File returns the client for gNOI File service.
@@ -60,40 +61,40 @@ func (c *Clients) File() fpb.FileClient {
 
 // Healthz returns the client for gNOI Healthz service.
 func (c *Clients) Healthz() hpb.HealthzClient {
-	return c.Hz
+	return c.HealthzClient
 }
 
 // Layer2 returns the client for gNOI Layer2 service.
 func (c *Clients) Layer2() lpb.Layer2Client {
-	return c.L2
+	return c.Layer2Client
 }
 
 // LinkQualification returns the client for gNOI LinkQualification service.
 func (c *Clients) LinkQualification() plqpb.LinkQualificationClient {
-	return c.LinkQual
+	return c.LinkQualClient
 }
 
 // MPLS returns the client for gNOI MPLS service.
 func (c *Clients) MPLS() mpb.MPLSClient {
-	return c.Mpls
+	return c.MPLSClient
 }
 
 // OS returns the client for gNOI OS service.
 func (c *Clients) OS() ospb.OSClient {
-	return c.Os
+	return c.OSClient
 }
 
 // OTDR returns the client for gNOI OTDR service.
 func (c *Clients) OTDR() otpb.OTDRClient {
-	return c.Otdr
+	return c.OTDRClient
 }
 
 // System returns the client for gNOI System service.
 func (c *Clients) System() spb.SystemClient {
-	return c.Sys
+	return c.SystemClient
 }
 
 // WavelengthRouter returns the client for gNOI WavelengthRouter service.
 func (c *Clients) WavelengthRouter() wrpb.WavelengthRouterClient {
-	return c.WavelengthR
+	return c.WavelengthRouterClient
 }
