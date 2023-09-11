@@ -1,4 +1,4 @@
-// Package internal provides gnoigo structs that are not used in publically.
+// Package internal provides gnoigo structs that are not part of the public API.
 package internal
 
 import (
