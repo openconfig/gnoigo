@@ -65,5 +65,5 @@ type Operation[T any] interface {
 // Execute performs an operation and returns one or more response protos.
 // For example, a PingOperation returns a slice of PingResponse messages.
 func Execute[T any](ctx context.Context, c Clients, op Operation[T]) (T, error) {
-	return op.Execute(ctx, c)
+	return op.Execute(ctx, c.(*internal.Clients))
 }
