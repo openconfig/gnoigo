@@ -2,11 +2,10 @@
   Gnoigo is a go gNOI client library that provides convenience functions for accessing gNOI operations. 
 
   To build and execute the gnoigo unit tests, run the following:
-
-    ```
-    go build ./...
-    go test ./...go 
-    ```
+  ```
+  go build ./...
+  go test ./...
+  ```
 # Usage
   Following is an example of how to use gnoigo API for performing a Ping Operation which is present in the `System` module.
 
