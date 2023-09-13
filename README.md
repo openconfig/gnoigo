@@ -3,10 +3,10 @@
 
   To build and execute the gnoigo unit tests, run the following:
 
-  ```
-  go build ./...
-  go test ./...go 
-  ```
+    ```
+    go build ./...
+    go test ./...go 
+    ```
 # Usage
   Following is an example of how to use gnoigo API for performing a Ping Operation which is present in the `System` module.
 
