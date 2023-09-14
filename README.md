@@ -22,7 +22,7 @@ Operation which is present in the`System` module.
     if err != nil {
         return err
     }
-    client := gnoigo.NewClients(conn)
+    clients := gnoigo.NewClients(conn)
     ```
 
 *   Create the PingOperation object with inputs like source and destination.
@@ -34,7 +34,7 @@ Operation which is present in the`System` module.
 *   Call the Execute operation to perform the Ping operation.
 
     ```
-    response, err := gnoigo.Execute(ctx, client, pingOp)
+    response, err := gnoigo.Execute(ctx, clients, pingOp)
     ```
 
     In this example `response` will be of type `PingResponse`.
