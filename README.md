@@ -19,6 +19,7 @@ Operation which is present in the`System` module.
 
     ```
     conn, err := grpc.DialContext(ctx, "host")
+    if err != nil { return err }
     client := gnoigo.NewClients(conn)
     ```
 
