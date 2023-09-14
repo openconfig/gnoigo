@@ -12,8 +12,8 @@ go test ./...
 
 ## Usage
 
-Following is an example of how to use `gnoigo API for performing a Ping
-Operation which is present in the`System` module.
+Following is an example of how to use `gnoigo` API for performing a Ping
+Operation which is present in the `System` module.
 
 *   Create the `gnoigo` clients object.
 
