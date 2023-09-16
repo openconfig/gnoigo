@@ -19,7 +19,7 @@ import (
 type fakeSystemClient struct {
 	spb.SystemClient
 	PingFn       func(context.Context, *spb.PingRequest, ...grpc.CallOption) (spb.System_PingClient, error)
-		TimeFn       func(context.Context, *spb.TimeRequest, ...grpc.CallOption) (*spb.TimeResponse, error)
+	TimeFn       func(context.Context, *spb.TimeRequest, ...grpc.CallOption) (*spb.TimeResponse, error)
 	TracerouteFn func(context.Context, *spb.TracerouteRequest, ...grpc.CallOption) (spb.System_TracerouteClient, error)
 }
 
