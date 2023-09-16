@@ -11,12 +11,12 @@ import (
 	"github.com/openconfig/gnoigo/internal"
 )
 
-// PingOperation represents input fields required to perform a Ping operation.
+// PingOperation represents the parameters of a Ping operation.
 type PingOperation struct {
 	req *spb.PingRequest
 }
 
-// NewPingOperation creates a PingOperation with empty PingRequest.
+// NewPingOperation creates an empty PingOperation.
 func NewPingOperation() *PingOperation {
 	return &PingOperation{req: &spb.PingRequest{}}
 }
@@ -75,6 +75,7 @@ func (p *PingOperation) L3Protocol(l3p tpb.L3Protocol) *PingOperation {
 	return p
 }
 
+// Execute performs the Ping operation.
 func (p *PingOperation) Execute(ctx context.Context, c *internal.Clients) ([]*spb.PingResponse, error) {
 	ping, err := c.System().Ping(ctx, p.req)
 	if err != nil {
@@ -96,12 +97,27 @@ func (p *PingOperation) Execute(ctx context.Context, c *internal.Clients) ([]*sp
 	}
 }
 
-// TracerouteOperation represents input fields required to perform a Traceroute operation.
+// TimeOperation represents the parameters of a Time operation.
+type TimeOperation struct {
+	req *spb.TimeRequest
+}
+
+// NewTimeOperation creates an empty TimeOperation.
+func NewTimeOperation() *TimeOperation {
+	return &TimeOperation{req: &spb.TimeRequest{}}
+}
+
+// Execute performs the Time operation.
+func (t *TimeOperation) Execute(ctx context.Context, c *internal.Clients) (*spb.TimeResponse, error) {
+	return c.System().Time(ctx, t.req)
+}
+
+// TracerouteOperation represents the parameters of a Traceroute operation.
 type TracerouteOperation struct {
 	req *spb.TracerouteRequest
 }
 
-// NewTracerouteOperation creates a TracerouteOperation with empty TracerouteRequest.
+// NewTracerouteOperation creates an empty TracerouteOperation.
 func NewTracerouteOperation() *TracerouteOperation {
 	return &TracerouteOperation{req: &spb.TracerouteRequest{}}
 }
@@ -166,6 +182,7 @@ func (t *TracerouteOperation) DoNotLookupASN(asn bool) *TracerouteOperation {
 	return t
 }
 
+// Execute performs the Traceroute operation.
 func (t *TracerouteOperation) Execute(ctx context.Context, c *internal.Clients) ([]*spb.TracerouteResponse, error) {
 	traceroute, err := c.System().Traceroute(ctx, t.req)
 	if err != nil {
@@ -185,23 +202,4 @@ func (t *TracerouteOperation) Execute(ctx context.Context, c *internal.Clients) 
 			tracerouteResp = append(tracerouteResp, resp)
 		}
 	}
-}
-
-// TimeOperation represents fields required to perform a Time operation.
-type TimeOperation struct {
-	req *spb.TimeRequest
-}
-
-// NewTimeOperation creates a TimeOperation with empty TimeRequest.
-func NewTimeOperation() *TimeOperation {
-	return &TimeOperation{req: &spb.TimeRequest{}}
-}
-
-func (t *TimeOperation) Execute(ctx context.Context, c *internal.Clients) (*spb.TimeResponse, error) {
-	time, err := c.System().Time(ctx, t.req)
-	if err != nil {
-		return nil, err
-	}
-
-	return time, nil
 }

@@ -19,8 +19,8 @@ import (
 type fakeSystemClient struct {
 	spb.SystemClient
 	PingFn       func(context.Context, *spb.PingRequest, ...grpc.CallOption) (spb.System_PingClient, error)
+		TimeFn       func(context.Context, *spb.TimeRequest, ...grpc.CallOption) (*spb.TimeResponse, error)
 	TracerouteFn func(context.Context, *spb.TracerouteRequest, ...grpc.CallOption) (spb.System_TracerouteClient, error)
-	TimeFn       func(context.Context, *spb.TimeRequest, ...grpc.CallOption) (*spb.TimeResponse, error)
 }
 
 func (fg *fakeSystemClient) System() spb.SystemClient {
@@ -31,12 +31,12 @@ func (fg *fakeSystemClient) Ping(ctx context.Context, in *spb.PingRequest, opts 
 	return fg.PingFn(ctx, in, opts...)
 }
 
-func (fg *fakeSystemClient) Traceroute(ctx context.Context, in *spb.TracerouteRequest, opts ...grpc.CallOption) (spb.System_TracerouteClient, error) {
-	return fg.TracerouteFn(ctx, in, opts...)
-}
-
 func (fg *fakeSystemClient) Time(ctx context.Context, in *spb.TimeRequest, opts ...grpc.CallOption) (*spb.TimeResponse, error) {
 	return fg.TimeFn(ctx, in, opts...)
+}
+
+func (fg *fakeSystemClient) Traceroute(ctx context.Context, in *spb.TracerouteRequest, opts ...grpc.CallOption) (spb.System_TracerouteClient, error) {
+	return fg.TracerouteFn(ctx, in, opts...)
 }
 
 type fakePingClient struct {
@@ -118,6 +118,45 @@ func TestPing(t *testing.T) {
 	}
 }
 
+func TestTime(t *testing.T) {
+	tests := []struct {
+		desc    string
+		op      *system.TimeOperation
+		want    *spb.TimeResponse
+		wantErr string
+	}{
+		{
+			desc: "Test time",
+			op:   system.NewTimeOperation(),
+			want: &spb.TimeResponse{Time: 1234},
+		},
+		{
+			desc:    "Time returns error",
+			op:      system.NewTimeOperation(),
+			wantErr: "Time operation error",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			var fakeClient internal.Clients
+			fakeClient.SystemClient = &fakeSystemClient{TimeFn: func(_ context.Context, req *spb.TimeRequest, _ ...grpc.CallOption) (*spb.TimeResponse, error) {
+				if tt.wantErr != "" {
+					return nil, fmt.Errorf(tt.wantErr)
+				}
+				return tt.want, nil
+			}}
+
+			got, gotErr := tt.op.Execute(context.Background(), &fakeClient)
+			if (gotErr == nil) != (tt.wantErr == "") || (gotErr != nil && !strings.Contains(gotErr.Error(), tt.wantErr)) {
+				t.Errorf("Execute() got unexpected error %v want %s", gotErr, tt.wantErr)
+			}
+			if tt.want != got {
+				t.Errorf("Execute() got unexpected response want %v got %v", tt.want, got)
+			}
+		})
+	}
+}
+
 func TestTraceroute(t *testing.T) {
 	tests := []struct {
 		desc    string
@@ -157,45 +196,6 @@ func TestTraceroute(t *testing.T) {
 			}
 			if diff := cmp.Diff(tt.want, got, protocmp.Transform()); diff != "" {
 				t.Errorf("Execute() got unexpected response diff (-want +got): %s", diff)
-			}
-		})
-	}
-}
-
-func TestTime(t *testing.T) {
-	tests := []struct {
-		desc    string
-		op      *system.TimeOperation
-		want    *spb.TimeResponse
-		wantErr string
-	}{
-		{
-			desc: "Test time",
-			op:   system.NewTimeOperation(),
-			want: &spb.TimeResponse{Time: 1234},
-		},
-		{
-			desc:    "Time returns error",
-			op:      system.NewTimeOperation(),
-			wantErr: "Time operation error",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.desc, func(t *testing.T) {
-			var fakeClient internal.Clients
-			fakeClient.SystemClient = &fakeSystemClient{TimeFn: func(_ context.Context, req *spb.TimeRequest, _ ...grpc.CallOption) (*spb.TimeResponse, error) {
-				if tt.wantErr != "" {
-					return nil, fmt.Errorf(tt.wantErr)
-				}
-				return tt.want, nil
-			}}
-
-			got, gotErr := tt.op.Execute(context.Background(), &fakeClient)
-			if (gotErr == nil) != (tt.wantErr == "") || (gotErr != nil && !strings.Contains(gotErr.Error(), tt.wantErr)) {
-				t.Errorf("Execute() got unexpected error %v want %s", gotErr, tt.wantErr)
-			}
-			if tt.want != got {
-				t.Errorf("Execute() got unexpected response want %v got %v", tt.want, got)
 			}
 		})
 	}
