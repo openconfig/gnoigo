@@ -95,3 +95,113 @@ func (p *PingOperation) Execute(ctx context.Context, c *internal.Clients) ([]*sp
 		}
 	}
 }
+
+// TracerouteOperation represents input fields required to perform a Traceroute operation.
+type TracerouteOperation struct {
+	req *spb.TracerouteRequest
+}
+
+// NewTracerouteOperation creates a TracerouteOperation with empty TracerouteRequest.
+func NewTracerouteOperation() *TracerouteOperation {
+	return &TracerouteOperation{req: &spb.TracerouteRequest{}}
+}
+
+// Source specifies address to perform traceroute from.
+func (t *TracerouteOperation) Source(src string) *TracerouteOperation {
+	t.req.Source = src
+	return t
+}
+
+// Destination specifies address to perform traceroute to.
+func (t *TracerouteOperation) Destination(dst string) *TracerouteOperation {
+	t.req.Destination = dst
+	return t
+}
+
+// InitialTTL specifies traceroute ttl (default is 1).
+func (t *TracerouteOperation) InitialTTL(ttl uint32) *TracerouteOperation {
+	t.req.InitialTtl = ttl
+	return t
+}
+
+// MaxTTL specifies maximum number of hops.
+func (t *TracerouteOperation) MaxTTL(ttl int32) *TracerouteOperation {
+	t.req.MaxTtl = ttl
+	return t
+}
+
+// Wait specifies nanoseconds to wait for a response.
+func (t *TracerouteOperation) Wait(wait int64) *TracerouteOperation {
+	t.req.Wait = wait
+	return t
+}
+
+// DoNotFragment sets the do not fragment bit. (IPv4 destinations)
+func (t *TracerouteOperation) DoNotFragment(dnf bool) *TracerouteOperation {
+	t.req.DoNotFragment = dnf
+	return t
+}
+
+// DoNotResolve specifies if address returned should be resolved.
+func (t *TracerouteOperation) DoNotResolve(dnr bool) *TracerouteOperation {
+	t.req.DoNotFragment = dnr
+	return t
+}
+
+// L3Protocol specifies layer3 protocol for the traceroute.
+func (t *TracerouteOperation) L3Protocol(l3 tpb.L3Protocol) *TracerouteOperation {
+	t.req.L3Protocol = l3
+	return t
+}
+
+// L4Protocol specifies layer3 protocol for the traceroute.
+func (t *TracerouteOperation) L4Protocol(l4 spb.TracerouteRequest_L4Protocol) *TracerouteOperation {
+	t.req.L4Protocol = l4
+	return t
+}
+
+// DoNotLookupASN specifies if traceroute should try to lookup ASN.
+func (t *TracerouteOperation) DoNotLookupASN(asn bool) *TracerouteOperation {
+	t.req.DoNotLookupAsn = asn
+	return t
+}
+
+func (t *TracerouteOperation) Execute(ctx context.Context, c *internal.Clients) ([]*spb.TracerouteResponse, error) {
+	traceroute, err := c.System().Traceroute(ctx, t.req)
+	if err != nil {
+		return nil, err
+	}
+
+	var tracerouteResp []*spb.TracerouteResponse
+
+	for {
+		resp, err := traceroute.Recv()
+		switch {
+		case err == io.EOF:
+			return tracerouteResp, nil
+		case err != nil:
+			return nil, err
+		default:
+			tracerouteResp = append(tracerouteResp, resp)
+		}
+	}
+}
+
+// TimeOperation represents fields required to perform a Time operation.
+type TimeOperation struct {
+	req *spb.TimeRequest
+}
+
+// NewTimeOperation creates a TimeOperation with empty TimeRequest.
+func NewTimeOperation() *TimeOperation {
+	return &TimeOperation{req: &spb.TimeRequest{}}
+}
+
+func (t *TimeOperation) Execute(ctx context.Context, c *internal.Clients) (*spb.TimeResponse, error) {
+	time, err := c.System().Time(ctx, t.req)
+	if err != nil {
+		return nil, err
+	}
+
+	return time, nil
+}
