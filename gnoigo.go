@@ -1,3 +1,4 @@
+// Package gnoigo provides convenience functions for running gNOI operations.
 package gnoigo
 
 import (
