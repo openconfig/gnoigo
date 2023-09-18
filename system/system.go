@@ -4,6 +4,7 @@ package system
 import (
 	"context"
 	"io"
+	"time"
 
 	spb "github.com/openconfig/gnoi/system"
 	tpb "github.com/openconfig/gnoi/types"
@@ -39,15 +40,15 @@ func (p *PingOperation) Count(c int32) *PingOperation {
 	return p
 }
 
-// Interval specifies the nanoseconds between ping requests.
-func (p *PingOperation) Interval(i int64) *PingOperation {
-	p.req.Interval = i
+// Interval specifies the duration between ping requests.
+func (p *PingOperation) Interval(i time.Duration) *PingOperation {
+	p.req.Interval = i.Nanoseconds()
 	return p
 }
 
-// Wait specifies nanoseconds to wait for a response.
-func (p *PingOperation) Wait(w int64) *PingOperation {
-	p.req.Wait = w
+// Wait specifies the duration to wait for a response.
+func (p *PingOperation) Wait(w time.Duration) *PingOperation {
+	p.req.Wait = w.Nanoseconds()
 	return p
 }
 
@@ -146,9 +147,9 @@ func (t *TracerouteOperation) MaxTTL(ttl int32) *TracerouteOperation {
 	return t
 }
 
-// Wait specifies nanoseconds to wait for a response.
-func (t *TracerouteOperation) Wait(wait int64) *TracerouteOperation {
-	t.req.Wait = wait
+// Wait specifies the duration to wait for a response.
+func (t *TracerouteOperation) Wait(wait time.Duration) *TracerouteOperation {
+	t.req.Wait = wait.Nanoseconds()
 	return t
 }
 
