@@ -1,7 +1,7 @@
 ## Introduction
 
 `gnoigo` is a go gNOI client library that provides convenience functions for
-accessing gNOI operations.
+constructing and running gNOI operations.
 
 To build and execute the `gnoigo` unit tests, run the following:
 
