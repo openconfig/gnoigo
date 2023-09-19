@@ -96,6 +96,7 @@ func TestKillProcess(t *testing.T) {
 			}
 		})
 	}
+}
 
 type fakeTracerouteClient struct {
 	spb.System_TracerouteClient
