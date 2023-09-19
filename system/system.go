@@ -12,6 +12,45 @@ import (
 	"github.com/openconfig/gnoigo/internal"
 )
 
+// KillProcessOperation represents the parameters of a KillProcess operation.
+type KillProcessOperation struct {
+	req *spb.KillProcessRequest
+}
+
+// NewKillProcessOperation creates an empty KillProcessOperation.
+func NewKillProcessOperation() *KillProcessOperation {
+	return &KillProcessOperation{req: &spb.KillProcessRequest{}}
+}
+
+// PID specifies the process ID of the process to be killed.
+func (k *KillProcessOperation) PID(pid uint32) *KillProcessOperation {
+	k.req.Pid = pid
+	return k
+}
+
+// Name specifies the name of the process to be killed.
+func (k *KillProcessOperation) Name(n string) *KillProcessOperation {
+	k.req.Name = n
+	return k
+}
+
+// Signal specifies the termination signal sent to the process.
+func (k *KillProcessOperation) Signal(s spb.KillProcessRequest_Signal) *KillProcessOperation {
+	k.req.Signal = s
+	return k
+}
+
+// Restart specifies whether the process should be restarted after termination.
+func (k *KillProcessOperation) Restart(r bool) *KillProcessOperation {
+	k.req.Restart = r
+	return k
+}
+
+// Execute performs the KillProcess operation.
+func (k *KillProcessOperation) Execute(ctx context.Context, c *internal.Clients) (*spb.KillProcessResponse, error) {
+	return c.System().KillProcess(ctx, k.req)
+}
+
 // PingOperation represents the parameters of a Ping operation.
 type PingOperation struct {
 	req *spb.PingRequest
