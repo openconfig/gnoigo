@@ -80,7 +80,7 @@ func TestKillProcess(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
 			var fakeClient internal.Clients
-			fakeClient.SystemClient = &fakeSystemClient{KillProcessFn: func(_ context.Context, req *spb.KillProcessRequest, _ ...grpc.CallOption) (*spb.KillProcessResponse, error) {
+			fakeClient.SystemClient = &fakeSystemClient{KillProcessFn: func(context.Context, *spb.KillProcessRequest, ...grpc.CallOption) (*spb.KillProcessResponse, error) {
 				if tt.wantErr != "" {
 					return nil, fmt.Errorf(tt.wantErr)
 				}
@@ -144,7 +144,7 @@ func TestPing(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
 			var fakeClient internal.Clients
-			fakeClient.SystemClient = &fakeSystemClient{PingFn: func(_ context.Context, req *spb.PingRequest, _ ...grpc.CallOption) (spb.System_PingClient, error) {
+			fakeClient.SystemClient = &fakeSystemClient{PingFn: func(context.Context, *spb.PingRequest, ...grpc.CallOption) (spb.System_PingClient, error) {
 				if tt.wantErr != "" {
 					return nil, fmt.Errorf(tt.wantErr)
 				}
@@ -183,7 +183,7 @@ func TestTime(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
 			var fakeClient internal.Clients
-			fakeClient.SystemClient = &fakeSystemClient{TimeFn: func(_ context.Context, req *spb.TimeRequest, _ ...grpc.CallOption) (*spb.TimeResponse, error) {
+			fakeClient.SystemClient = &fakeSystemClient{TimeFn: func(context.Context, *spb.TimeRequest, ...grpc.CallOption) (*spb.TimeResponse, error) {
 				if tt.wantErr != "" {
 					return nil, fmt.Errorf(tt.wantErr)
 				}
@@ -227,7 +227,7 @@ func TestTraceroute(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
 			var fakeClient internal.Clients
-			fakeClient.SystemClient = &fakeSystemClient{TracerouteFn: func(_ context.Context, req *spb.TracerouteRequest, _ ...grpc.CallOption) (spb.System_TracerouteClient, error) {
+			fakeClient.SystemClient = &fakeSystemClient{TracerouteFn: func(context.Context, *spb.TracerouteRequest, ...grpc.CallOption) (spb.System_TracerouteClient, error) {
 				if tt.wantErr != "" {
 					return nil, fmt.Errorf(tt.wantErr)
 				}
