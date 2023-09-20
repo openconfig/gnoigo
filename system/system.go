@@ -137,6 +137,43 @@ func (p *PingOperation) Execute(ctx context.Context, c *internal.Clients) ([]*sp
 	}
 }
 
+// SwitchControlProcessorOperation represents the parameters of a SwitchControlProcessor operation.
+type SwitchControlProcessorOperation struct {
+	origin string
+	name   string
+}
+
+// NewSwitchControlProcessorOperation creates an empty SwitchControlProcessorOperation.
+func NewSwitchControlProcessorOperation() *SwitchControlProcessorOperation {
+	return &SwitchControlProcessorOperation{}
+}
+
+// Origin specifies the label to disambiguate path.
+func (s *SwitchControlProcessorOperation) Origin(o string) *SwitchControlProcessorOperation {
+	s.origin = o
+	return s
+}
+
+// Name specifies address to perform SwitchControlProcessor from.
+func (s *SwitchControlProcessorOperation) Name(n string) *SwitchControlProcessorOperation {
+	s.name = n
+	return s
+}
+
+// Execute performs the SwitchControlProcessor operation.
+func (s *SwitchControlProcessorOperation) Execute(ctx context.Context, c *internal.Clients) (*spb.SwitchControlProcessorResponse, error) {
+	switchoverRequest := &spb.SwitchControlProcessorRequest{
+		ControlProcessor: &tpb.Path{
+			Origin: s.origin,
+			Elem: []*tpb.PathElem{
+				{Name: "components"},
+				{Name: "component", Key: map[string]string{"name": s.name}},
+			},
+		},
+	}
+	return c.System().SwitchControlProcessor(ctx, switchoverRequest)
+}
+
 // TimeOperation represents the parameters of a Time operation.
 type TimeOperation struct {
 	req *spb.TimeRequest
