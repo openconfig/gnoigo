@@ -162,7 +162,7 @@ func NewSwitchControlProcessorOperation() *SwitchControlProcessorOperation {
 	return &SwitchControlProcessorOperation{}
 }
 
-// Origin specifies the label to disambiguate path.
+// Origin specifies the label to disambiguate element path.
 func (s *SwitchControlProcessorOperation) Origin(o string) *SwitchControlProcessorOperation {
 	s.origin = o
 	return s
