@@ -154,7 +154,7 @@ func (s *SwitchControlProcessorOperation) Origin(o string) *SwitchControlProcess
 	return s
 }
 
-// Name specifies address to perform SwitchControlProcessor from.
+// Name specifies name of the component to switch.
 func (s *SwitchControlProcessorOperation) Name(n string) *SwitchControlProcessorOperation {
 	s.name = n
 	return s
