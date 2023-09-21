@@ -26,6 +26,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	spb "github.com/openconfig/gnoi/system"
+	tpb "github.com/openconfig/gnoi/types"
 	"github.com/openconfig/gnoigo/internal"
 	"github.com/openconfig/gnoigo/system"
 )
@@ -141,7 +142,13 @@ func TestSwitchControlProcessor(t *testing.T) {
 	}{
 		{
 			desc: "Test SwitchControlProcessor",
-			op:   system.NewSwitchControlProcessorOperation().Name("supervisor"),
+			op: system.NewSwitchControlProcessorOperation().Path(&tpb.Path{
+				Origin: "openconfig",
+				Elem: []*tpb.PathElem{
+					{Name: "components"},
+					{Name: "component", Key: map[string]string{"name": "RP0"}},
+				},
+			}),
 			want: &spb.SwitchControlProcessorResponse{Version: "new"},
 		},
 		{
