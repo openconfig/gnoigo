@@ -17,7 +17,6 @@ package system
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"time"
 
@@ -154,47 +153,38 @@ func (p *PingOperation) Execute(ctx context.Context, c *internal.Clients) ([]*sp
 
 // SwitchControlProcessorOperation represents the parameters of a SwitchControlProcessor operation.
 type SwitchControlProcessorOperation struct {
-	subcomponentName string
-	isPathSet        bool
-	path             *tpb.Path
+	req *spb.SwitchControlProcessorRequest
 }
 
 // NewSwitchControlProcessorOperation creates an empty SwitchControlProcessorOperation.
 func NewSwitchControlProcessorOperation() *SwitchControlProcessorOperation {
-	return &SwitchControlProcessorOperation{}
+	return &SwitchControlProcessorOperation{req: &spb.SwitchControlProcessorRequest{}}
 }
+
+// PathFromSubcomponentName and Path set the route processor path. These functions override each other and only
+// the last function used will be applied.
 
 // PathFromSubcomponentName sets the path for route processor to switch from the subcomponentName.
 func (s *SwitchControlProcessorOperation) PathFromSubcomponentName(n string) *SwitchControlProcessorOperation {
-	s.subcomponentName = n
+	s.req.ControlProcessor = &tpb.Path{
+		Origin: "openconfig",
+		Elem: []*tpb.PathElem{
+			{Name: "components"},
+			{Name: "component", Key: map[string]string{"name": n}},
+		},
+	}
 	return s
 }
 
-// Path specifies the path of the route processor to switch.
+// Path sets the full path for the route processor to switch.
 func (s *SwitchControlProcessorOperation) Path(p *tpb.Path) *SwitchControlProcessorOperation {
-	s.isPathSet = true
-	s.path = p
+	s.req.ControlProcessor = p
 	return s
 }
 
 // Execute performs the SwitchControlProcessor operation.
 func (s *SwitchControlProcessorOperation) Execute(ctx context.Context, c *internal.Clients) (*spb.SwitchControlProcessorResponse, error) {
-	if s.subcomponentName != "" && s.isPathSet {
-		return nil, fmt.Errorf("cannot set both PathFromSubcomponentName %v and Path %v", s.subcomponentName, s.path.String())
-	}
-	req := &spb.SwitchControlProcessorRequest{ControlProcessor: s.path}
-	if s.subcomponentName != "" {
-		req = &spb.SwitchControlProcessorRequest{
-			ControlProcessor: &tpb.Path{
-				Origin: "openconfig",
-				Elem: []*tpb.PathElem{
-					{Name: "components"},
-					{Name: "component", Key: map[string]string{"name": s.subcomponentName}},
-				},
-			},
-		}
-	}
-	return c.System().SwitchControlProcessor(ctx, req)
+	return c.System().SwitchControlProcessor(ctx, s.req)
 }
 
 // TimeOperation represents the parameters of a Time operation.

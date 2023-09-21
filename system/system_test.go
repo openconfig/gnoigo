@@ -208,13 +208,12 @@ func TestSwitchControlProcessor(t *testing.T) {
 		{
 			desc: "Test SwitchControlProcessor with PathFromSubcomponentName and Path returns error",
 			op: system.NewSwitchControlProcessorOperation().PathFromSubcomponentName("RP0").Path(&tpb.Path{
-				Origin: "openconfig",
 				Elem: []*tpb.PathElem{
 					{Name: "components"},
 					{Name: "component", Key: map[string]string{"name": "RP0"}},
 				},
 			}),
-			wantErr: "cannot set both PathFromSubcomponentName ",
+			want: &spb.SwitchControlProcessorResponse{Version: "new"},
 		},
 		{
 			desc:    "SwitchControlProcessor returns error",
