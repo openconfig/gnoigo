@@ -17,6 +17,7 @@ package system
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"time"
 
@@ -153,23 +154,47 @@ func (p *PingOperation) Execute(ctx context.Context, c *internal.Clients) ([]*sp
 
 // SwitchControlProcessorOperation represents the parameters of a SwitchControlProcessor operation.
 type SwitchControlProcessorOperation struct {
-	req *spb.SwitchControlProcessorRequest
+	subcomponentName string
+	isPathSet        bool
+	path             *tpb.Path
 }
 
 // NewSwitchControlProcessorOperation creates an empty SwitchControlProcessorOperation.
 func NewSwitchControlProcessorOperation() *SwitchControlProcessorOperation {
-	return &SwitchControlProcessorOperation{req: &spb.SwitchControlProcessorRequest{}}
+	return &SwitchControlProcessorOperation{}
+}
+
+// PathFromSubcomponentName sets the path for route processor to switch from the subcomponentName.
+func (s *SwitchControlProcessorOperation) PathFromSubcomponentName(n string) *SwitchControlProcessorOperation {
+	s.subcomponentName = n
+	return s
 }
 
 // Path specifies the path of the route processor to switch.
 func (s *SwitchControlProcessorOperation) Path(p *tpb.Path) *SwitchControlProcessorOperation {
-	s.req.ControlProcessor = p
+	s.isPathSet = true
+	s.path = p
 	return s
 }
 
 // Execute performs the SwitchControlProcessor operation.
 func (s *SwitchControlProcessorOperation) Execute(ctx context.Context, c *internal.Clients) (*spb.SwitchControlProcessorResponse, error) {
-	return c.System().SwitchControlProcessor(ctx, s.req)
+	if s.subcomponentName != "" && s.isPathSet {
+		return nil, fmt.Errorf("cannot set both PathFromSubcomponentName %v and Path %v", s.subcomponentName, s.path.String())
+	}
+	req := &spb.SwitchControlProcessorRequest{ControlProcessor: s.path}
+	if s.subcomponentName != "" {
+		req = &spb.SwitchControlProcessorRequest{
+			ControlProcessor: &tpb.Path{
+				Origin: "openconfig",
+				Elem: []*tpb.PathElem{
+					{Name: "components"},
+					{Name: "component", Key: map[string]string{"name": s.subcomponentName}},
+				},
+			},
+		}
+	}
+	return c.System().SwitchControlProcessor(ctx, req)
 }
 
 // TimeOperation represents the parameters of a Time operation.

@@ -133,51 +133,6 @@ func (tc *fakeTracerouteClient) Recv() (*spb.TracerouteResponse, error) {
 	return resp, tc.err
 }
 
-func TestSwitchControlProcessor(t *testing.T) {
-	tests := []struct {
-		desc    string
-		op      *system.SwitchControlProcessorOperation
-		want    *spb.SwitchControlProcessorResponse
-		wantErr string
-	}{
-		{
-			desc: "Test SwitchControlProcessor",
-			op: system.NewSwitchControlProcessorOperation().Path(&tpb.Path{
-				Origin: "openconfig",
-				Elem: []*tpb.PathElem{
-					{Name: "components"},
-					{Name: "component", Key: map[string]string{"name": "RP0"}},
-				},
-			}),
-			want: &spb.SwitchControlProcessorResponse{Version: "new"},
-		},
-		{
-			desc:    "SwitchControlProcessor returns error",
-			op:      system.NewSwitchControlProcessorOperation(),
-			wantErr: "SwitchControlProcessor operation error",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.desc, func(t *testing.T) {
-			var fakeClient internal.Clients
-			fakeClient.SystemClient = &fakeSystemClient{SwitchControlProcessorFn: func(context.Context, *spb.SwitchControlProcessorRequest, ...grpc.CallOption) (*spb.SwitchControlProcessorResponse, error) {
-				if tt.wantErr != "" {
-					return nil, fmt.Errorf(tt.wantErr)
-				}
-				return tt.want, nil
-			}}
-
-			got, gotErr := tt.op.Execute(context.Background(), &fakeClient)
-			if (gotErr == nil) != (tt.wantErr == "") || (gotErr != nil && !strings.Contains(gotErr.Error(), tt.wantErr)) {
-				t.Errorf("Execute() got unexpected error %v want %s", gotErr, tt.wantErr)
-			}
-			if tt.want != got {
-				t.Errorf("Execute() got unexpected response want %v got %v", tt.want, got)
-			}
-		})
-	}
-}
-
 func TestPing(t *testing.T) {
 	tests := []struct {
 		desc    string
@@ -222,6 +177,67 @@ func TestPing(t *testing.T) {
 			}
 			if diff := cmp.Diff(tt.want, got, protocmp.Transform()); diff != "" {
 				t.Errorf("Execute() got unexpected response diff (-want +got): %s", diff)
+			}
+		})
+	}
+}
+
+func TestSwitchControlProcessor(t *testing.T) {
+	tests := []struct {
+		desc    string
+		op      *system.SwitchControlProcessorOperation
+		want    *spb.SwitchControlProcessorResponse
+		wantErr string
+	}{
+		{
+			desc: "Test SwitchControlProcessor with Path",
+			op: system.NewSwitchControlProcessorOperation().Path(&tpb.Path{
+				Origin: "openconfig",
+				Elem: []*tpb.PathElem{
+					{Name: "components"},
+					{Name: "component", Key: map[string]string{"name": "RP0"}},
+				},
+			}),
+			want: &spb.SwitchControlProcessorResponse{Version: "new"},
+		},
+		{
+			desc: "Test SwitchControlProcessor with PathFromSubcomponentName",
+			op:   system.NewSwitchControlProcessorOperation().PathFromSubcomponentName("RP0"),
+			want: &spb.SwitchControlProcessorResponse{Version: "new"},
+		},
+		{
+			desc: "Test SwitchControlProcessor with PathFromSubcomponentName and Path returns error",
+			op: system.NewSwitchControlProcessorOperation().PathFromSubcomponentName("RP0").Path(&tpb.Path{
+				Origin: "openconfig",
+				Elem: []*tpb.PathElem{
+					{Name: "components"},
+					{Name: "component", Key: map[string]string{"name": "RP0"}},
+				},
+			}),
+			wantErr: "cannot set both PathFromSubcomponentName ",
+		},
+		{
+			desc:    "SwitchControlProcessor returns error",
+			op:      system.NewSwitchControlProcessorOperation(),
+			wantErr: "SwitchControlProcessor operation error",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			var fakeClient internal.Clients
+			fakeClient.SystemClient = &fakeSystemClient{SwitchControlProcessorFn: func(context.Context, *spb.SwitchControlProcessorRequest, ...grpc.CallOption) (*spb.SwitchControlProcessorResponse, error) {
+				if tt.wantErr != "" {
+					return nil, fmt.Errorf(tt.wantErr)
+				}
+				return tt.want, nil
+			}}
+
+			got, gotErr := tt.op.Execute(context.Background(), &fakeClient)
+			if (gotErr == nil) != (tt.wantErr == "") || (gotErr != nil && !strings.Contains(gotErr.Error(), tt.wantErr)) {
+				t.Errorf("Execute() got unexpected error %v want %s", gotErr, tt.wantErr)
+			}
+			if tt.want != got {
+				t.Errorf("Execute() got unexpected response want %v got %v", tt.want, got)
 			}
 		})
 	}
