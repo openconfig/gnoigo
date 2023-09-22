@@ -161,22 +161,18 @@ func NewSwitchControlProcessorOperation() *SwitchControlProcessorOperation {
 	return &SwitchControlProcessorOperation{req: &spb.SwitchControlProcessorRequest{}}
 }
 
-// PathFromSubcomponentName and Path set the route processor path. These functions override each other and only
-// the last function used will be applied.
-
-// PathFromSubcomponentName sets the path `/components/component[name=<string>]` for route processor to switch.
+// PathFromSubcomponentName sets the path of the target route processor to `/openconfig/components/component[name=<n>]`.
 func (s *SwitchControlProcessorOperation) PathFromSubcomponentName(n string) *SwitchControlProcessorOperation {
-	s.req.ControlProcessor = &tpb.Path{
+	return s.Path(&tpb.Path{
 		Origin: "openconfig",
 		Elem: []*tpb.PathElem{
 			{Name: "components"},
 			{Name: "component", Key: map[string]string{"name": n}},
 		},
-	}
-	return s
+	})
 }
 
-// Path sets the full path for the route processor to switch.
+// Path sets the path of the target route processor.
 func (s *SwitchControlProcessorOperation) Path(p *tpb.Path) *SwitchControlProcessorOperation {
 	s.req.ControlProcessor = p
 	return s
