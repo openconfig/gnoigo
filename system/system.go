@@ -151,6 +151,38 @@ func (p *PingOperation) Execute(ctx context.Context, c *internal.Clients) ([]*sp
 	}
 }
 
+// SwitchControlProcessorOperation represents the parameters of a SwitchControlProcessor operation.
+type SwitchControlProcessorOperation struct {
+	req *spb.SwitchControlProcessorRequest
+}
+
+// NewSwitchControlProcessorOperation creates an empty SwitchControlProcessorOperation.
+func NewSwitchControlProcessorOperation() *SwitchControlProcessorOperation {
+	return &SwitchControlProcessorOperation{req: &spb.SwitchControlProcessorRequest{}}
+}
+
+// PathFromSubcomponentName sets the path of the target route processor to `/openconfig/components/component[name=<n>]`.
+func (s *SwitchControlProcessorOperation) PathFromSubcomponentName(n string) *SwitchControlProcessorOperation {
+	return s.Path(&tpb.Path{
+		Origin: "openconfig",
+		Elem: []*tpb.PathElem{
+			{Name: "components"},
+			{Name: "component", Key: map[string]string{"name": n}},
+		},
+	})
+}
+
+// Path sets the path of the target route processor.
+func (s *SwitchControlProcessorOperation) Path(p *tpb.Path) *SwitchControlProcessorOperation {
+	s.req.ControlProcessor = p
+	return s
+}
+
+// Execute performs the SwitchControlProcessor operation.
+func (s *SwitchControlProcessorOperation) Execute(ctx context.Context, c *internal.Clients) (*spb.SwitchControlProcessorResponse, error) {
+	return c.System().SwitchControlProcessor(ctx, s.req)
+}
+
 // TimeOperation represents the parameters of a Time operation.
 type TimeOperation struct {
 	req *spb.TimeRequest
