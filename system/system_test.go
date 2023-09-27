@@ -33,8 +33,11 @@ import (
 
 type fakeSystemClient struct {
 	spb.SystemClient
+	CancelRebootFn           func(context.Context, *spb.CancelRebootRequest, ...grpc.CallOption) (*spb.CancelRebootResponse, error)
 	KillProcessFn            func(context.Context, *spb.KillProcessRequest, ...grpc.CallOption) (*spb.KillProcessResponse, error)
 	PingFn                   func(context.Context, *spb.PingRequest, ...grpc.CallOption) (spb.System_PingClient, error)
+	RebootFn                 func(context.Context, *spb.RebootRequest, ...grpc.CallOption) (*spb.RebootResponse, error)
+	RebootStatusFn           func(context.Context, *spb.RebootStatusRequest, ...grpc.CallOption) (*spb.RebootStatusResponse, error)
 	SwitchControlProcessorFn func(context.Context, *spb.SwitchControlProcessorRequest, ...grpc.CallOption) (*spb.SwitchControlProcessorResponse, error)
 	TimeFn                   func(context.Context, *spb.TimeRequest, ...grpc.CallOption) (*spb.TimeResponse, error)
 	TracerouteFn             func(context.Context, *spb.TracerouteRequest, ...grpc.CallOption) (spb.System_TracerouteClient, error)
@@ -42,6 +45,10 @@ type fakeSystemClient struct {
 
 func (fg *fakeSystemClient) System() spb.SystemClient {
 	return fg
+}
+
+func (fg *fakeSystemClient) CancelReboot(ctx context.Context, in *spb.CancelRebootRequest, opts ...grpc.CallOption) (*spb.CancelRebootResponse, error) {
+	return fg.CancelRebootFn(ctx, in, opts...)
 }
 
 func (fg *fakeSystemClient) KillProcess(ctx context.Context, in *spb.KillProcessRequest, opts ...grpc.CallOption) (*spb.KillProcessResponse, error) {
@@ -56,27 +63,20 @@ func (fg *fakeSystemClient) SwitchControlProcessor(ctx context.Context, in *spb.
 	return fg.SwitchControlProcessorFn(ctx, in, opts...)
 }
 
+func (fg *fakeSystemClient) Reboot(ctx context.Context, in *spb.RebootRequest, opts ...grpc.CallOption) (*spb.RebootResponse, error) {
+	return fg.RebootFn(ctx, in, opts...)
+}
+
+func (fg *fakeSystemClient) RebootStatus(ctx context.Context, in *spb.RebootStatusRequest, opts ...grpc.CallOption) (*spb.RebootStatusResponse, error) {
+	return fg.RebootStatusFn(ctx, in, opts...)
+}
+
 func (fg *fakeSystemClient) Time(ctx context.Context, in *spb.TimeRequest, opts ...grpc.CallOption) (*spb.TimeResponse, error) {
 	return fg.TimeFn(ctx, in, opts...)
 }
 
 func (fg *fakeSystemClient) Traceroute(ctx context.Context, in *spb.TracerouteRequest, opts ...grpc.CallOption) (spb.System_TracerouteClient, error) {
 	return fg.TracerouteFn(ctx, in, opts...)
-}
-
-type fakePingClient struct {
-	spb.System_PingClient
-	resp []*spb.PingResponse
-	err  error
-}
-
-func (pc *fakePingClient) Recv() (*spb.PingResponse, error) {
-	if len(pc.resp) == 0 && pc.err == nil {
-		return nil, io.EOF
-	}
-	resp := pc.resp[0]
-	pc.resp = pc.resp[1:]
-	return resp, pc.err
 }
 
 func TestKillProcess(t *testing.T) {
@@ -118,19 +118,19 @@ func TestKillProcess(t *testing.T) {
 	}
 }
 
-type fakeTracerouteClient struct {
-	spb.System_TracerouteClient
-	resp []*spb.TracerouteResponse
+type fakePingClient struct {
+	spb.System_PingClient
+	resp []*spb.PingResponse
 	err  error
 }
 
-func (tc *fakeTracerouteClient) Recv() (*spb.TracerouteResponse, error) {
-	if len(tc.resp) == 0 && tc.err == nil {
+func (pc *fakePingClient) Recv() (*spb.PingResponse, error) {
+	if len(pc.resp) == 0 && pc.err == nil {
 		return nil, io.EOF
 	}
-	resp := tc.resp[0]
-	tc.resp = tc.resp[1:]
-	return resp, tc.err
+	resp := pc.resp[0]
+	pc.resp = pc.resp[1:]
+	return resp, pc.err
 }
 
 func TestPing(t *testing.T) {
@@ -177,6 +177,108 @@ func TestPing(t *testing.T) {
 			}
 			if diff := cmp.Diff(tt.want, got, protocmp.Transform()); diff != "" {
 				t.Errorf("Execute() got unexpected response diff (-want +got): %s", diff)
+			}
+		})
+	}
+}
+
+func TestReboot(t *testing.T) {
+	tests := []struct {
+		desc                                                 string
+		op                                                   *system.RebootOperation
+		want                                                 *spb.RebootStatusResponse
+		wantRebootErr, wantStatusErr, wantCancelErr, wantErr string
+	}{
+		{
+			desc: "Test RebootwithStatus",
+			op: system.NewRebootOperation().RebootMethod(spb.RebootMethod_COLD).Subcomponents([]*tpb.Path{&tpb.Path{
+				Elem: []*tpb.PathElem{
+					{Name: "components"},
+					{Name: "component", Key: map[string]string{"name": "RP0"}},
+				},
+			}}).RebootWithStatus(),
+			want: &spb.RebootStatusResponse{Active: true},
+		},
+		{
+			desc:          "RebootwithStatus returns error on reboot",
+			op:            system.NewRebootOperation().RebootMethod(spb.RebootMethod_COLD).RebootWithStatus(),
+			wantRebootErr: "Reboot operation error",
+			wantErr:       "Reboot operation error",
+		},
+		{
+			desc:          "RebootwithStatus returns error on status",
+			op:            system.NewRebootOperation().RebootMethod(spb.RebootMethod_COLD).RebootWithStatus(),
+			wantStatusErr: "RebootStatus operation error",
+			wantErr:       "RebootStatus operation error",
+		},
+		{
+			desc: "Test RebootStatus",
+			op: system.NewRebootOperation().RebootMethod(spb.RebootMethod_COLD).Subcomponents([]*tpb.Path{&tpb.Path{
+				Elem: []*tpb.PathElem{
+					{Name: "components"},
+					{Name: "component", Key: map[string]string{"name": "RP0"}},
+				},
+			}}),
+			want: &spb.RebootStatusResponse{Active: true},
+		},
+		{
+			desc:          "RebootStatus returns error",
+			op:            system.NewRebootOperation().RebootMethod(spb.RebootMethod_COLD),
+			wantStatusErr: "RebootStatus operation error",
+			wantErr:       "RebootStatus operation error",
+		},
+		{
+			desc: "Test CancelRebootwithStatus",
+			op: system.NewRebootOperation().RebootMethod(spb.RebootMethod_COLD).Subcomponents([]*tpb.Path{&tpb.Path{
+				Elem: []*tpb.PathElem{
+					{Name: "components"},
+					{Name: "component", Key: map[string]string{"name": "RP0"}},
+				},
+			}}).CancelWithStatus(),
+			want: &spb.RebootStatusResponse{Active: true},
+		},
+		{
+			desc:          "CancelRebootwithStatus returns error on cancel",
+			op:            system.NewRebootOperation().RebootMethod(spb.RebootMethod_COLD).CancelWithStatus(),
+			wantCancelErr: "CancelReboot operation error",
+			wantErr:       "CancelReboot operation error",
+		},
+		{
+			desc:          "CancelRebootwithStatus returns error on status",
+			op:            system.NewRebootOperation().RebootMethod(spb.RebootMethod_COLD).CancelWithStatus(),
+			wantStatusErr: "RebootStatus operation error",
+			wantErr:       "RebootStatus operation error",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			var fakeClient internal.Clients
+			fakeClient.SystemClient = &fakeSystemClient{
+				RebootFn: func(context.Context, *spb.RebootRequest, ...grpc.CallOption) (*spb.RebootResponse, error) {
+					if tt.wantRebootErr != "" {
+						return nil, fmt.Errorf(tt.wantRebootErr)
+					}
+					return nil, nil
+				},
+				RebootStatusFn: func(context.Context, *spb.RebootStatusRequest, ...grpc.CallOption) (*spb.RebootStatusResponse, error) {
+					if tt.wantStatusErr != "" {
+						return nil, fmt.Errorf(tt.wantStatusErr)
+					}
+					return tt.want, nil
+				},
+				CancelRebootFn: func(context.Context, *spb.CancelRebootRequest, ...grpc.CallOption) (*spb.CancelRebootResponse, error) {
+					if tt.wantCancelErr != "" {
+						return nil, fmt.Errorf(tt.wantCancelErr)
+					}
+					return nil, nil
+				}}
+
+			got, gotErr := tt.op.Execute(context.Background(), &fakeClient)
+			if (gotErr == nil) != (tt.wantErr == "") || (gotErr != nil && !strings.Contains(gotErr.Error(), tt.wantErr)) {
+				t.Errorf("Execute() got unexpected error %v want %s", gotErr, tt.wantErr)
+			}
+			if tt.want != got {
+				t.Errorf("Execute() got unexpected response want %v got %v", tt.want, got)
 			}
 		})
 	}
@@ -279,6 +381,21 @@ func TestTime(t *testing.T) {
 			}
 		})
 	}
+}
+
+type fakeTracerouteClient struct {
+	spb.System_TracerouteClient
+	resp []*spb.TracerouteResponse
+	err  error
+}
+
+func (tc *fakeTracerouteClient) Recv() (*spb.TracerouteResponse, error) {
+	if len(tc.resp) == 0 && tc.err == nil {
+		return nil, io.EOF
+	}
+	resp := tc.resp[0]
+	tc.resp = tc.resp[1:]
+	return resp, tc.err
 }
 
 func TestTraceroute(t *testing.T) {

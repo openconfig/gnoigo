@@ -151,6 +151,98 @@ func (p *PingOperation) Execute(ctx context.Context, c *internal.Clients) ([]*sp
 	}
 }
 
+// RebootOperation represents the parameters of a Reboot operation.
+type RebootOperation struct {
+	rebootMethod  spb.RebootMethod
+	delay         time.Duration
+	message       string
+	subcomponents []*tpb.Path
+	force         bool
+	wait          time.Duration
+	rebootStatus  bool
+	cancelStatus  bool
+}
+
+// NewRebootOperation creates an empty RebootOperation.
+func NewRebootOperation() *RebootOperation {
+	return &RebootOperation{}
+}
+
+// RebootMethod specifies method to reboot.
+func (r *RebootOperation) RebootMethod(rebootMethod spb.RebootMethod) *RebootOperation {
+	r.rebootMethod = rebootMethod
+	return r
+}
+
+// Delay specifies time in nanoseconds to wait before issuing reboot.
+func (r *RebootOperation) Delay(delay time.Duration) *RebootOperation {
+	r.delay = delay
+	return r
+}
+
+// Message specifies informational reason for the reboot or cancel reboot.
+func (r *RebootOperation) Message(message string) *RebootOperation {
+	r.message = message
+	return r
+}
+
+// Subcomponents specifies the sub-components to reboot.
+func (r *RebootOperation) Subcomponents(subcomponents []*tpb.Path) *RebootOperation {
+	r.subcomponents = subcomponents
+	return r
+}
+
+// Force reboot if sanity checks fail.
+func (r *RebootOperation) Force(force bool) *RebootOperation {
+	r.force = force
+	return r
+}
+
+// Wait specifies the duration to wait before checking status for reboot or cancel.
+func (r *RebootOperation) Wait(wait time.Duration) *RebootOperation {
+	r.wait = wait
+	return r
+}
+
+// RebootWithStatus reboots the subcomponents and returns the status on Execute.
+func (r *RebootOperation) RebootWithStatus() *RebootOperation {
+	r.rebootStatus = true
+	r.cancelStatus = false
+	return r
+}
+
+// CancelWithStatus cancels the reboot of the subcomponents and returns the status on Execute.
+func (r *RebootOperation) CancelWithStatus() *RebootOperation {
+	r.rebootStatus = false
+	r.cancelStatus = true
+	return r
+}
+
+// Execute performs the Reboot or Cancel operation.
+func (r *RebootOperation) Execute(ctx context.Context, c *internal.Clients) (*spb.RebootStatusResponse, error) {
+	if r.rebootStatus {
+		_, err := c.System().Reboot(ctx, &spb.RebootRequest{
+			Method:        r.rebootMethod,
+			Delay:         uint64(r.delay.Nanoseconds()),
+			Message:       r.message,
+			Subcomponents: r.subcomponents,
+			Force:         r.force,
+		})
+		if err != nil {
+			return nil, err
+		}
+		time.Sleep(r.wait)
+	}
+	if r.cancelStatus {
+		_, err := c.System().CancelReboot(ctx, &spb.CancelRebootRequest{Subcomponents: r.subcomponents})
+		if err != nil {
+			return nil, err
+		}
+		time.Sleep(r.wait)
+	}
+	return c.System().RebootStatus(ctx, &spb.RebootStatusRequest{Subcomponents: r.subcomponents})
+}
+
 // SwitchControlProcessorOperation represents the parameters of a SwitchControlProcessor operation.
 type SwitchControlProcessorOperation struct {
 	req *spb.SwitchControlProcessorRequest
