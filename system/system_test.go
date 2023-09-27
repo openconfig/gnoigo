@@ -191,7 +191,7 @@ func TestReboot(t *testing.T) {
 	}{
 		{
 			desc: "Test RebootwithStatus",
-			op: system.NewRebootOperation().RebootMethod(spb.RebootMethod_COLD).Subcomponents([]*tpb.Path{&tpb.Path{
+			op: system.NewRebootOperation().RebootMethod(spb.RebootMethod_COLD).Subcomponents([]*tpb.Path{{
 				Elem: []*tpb.PathElem{
 					{Name: "components"},
 					{Name: "component", Key: map[string]string{"name": "RP0"}},
@@ -213,7 +213,7 @@ func TestReboot(t *testing.T) {
 		},
 		{
 			desc: "Test RebootStatus",
-			op: system.NewRebootOperation().RebootMethod(spb.RebootMethod_COLD).Subcomponents([]*tpb.Path{&tpb.Path{
+			op: system.NewRebootOperation().RebootMethod(spb.RebootMethod_COLD).Subcomponents([]*tpb.Path{{
 				Elem: []*tpb.PathElem{
 					{Name: "components"},
 					{Name: "component", Key: map[string]string{"name": "RP0"}},
@@ -229,7 +229,7 @@ func TestReboot(t *testing.T) {
 		},
 		{
 			desc: "Test CancelRebootwithStatus",
-			op: system.NewRebootOperation().RebootMethod(spb.RebootMethod_COLD).Subcomponents([]*tpb.Path{&tpb.Path{
+			op: system.NewRebootOperation().RebootMethod(spb.RebootMethod_COLD).Subcomponents([]*tpb.Path{{
 				Elem: []*tpb.PathElem{
 					{Name: "components"},
 					{Name: "component", Key: map[string]string{"name": "RP0"}},
