@@ -202,7 +202,8 @@ func (r *RebootOperation) Timeout(wait time.Duration) *RebootOperation {
 	return r
 }
 
-// Execute performs the Reboot and polls and returns RebootStatus until timeout or reboot is active.
+// Execute reboots the system and returns the RebootStatus after a timeout or when RebootStatus is active.
+// It will call CancelReboot if the context is canceled.
 func (r *RebootOperation) Execute(ctx context.Context, c *internal.Clients) (*spb.RebootStatusResponse, error) {
 	if _, err := c.System().Reboot(ctx, &spb.RebootRequest{
 		Method:        r.rebootMethod,
