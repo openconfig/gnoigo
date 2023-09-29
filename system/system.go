@@ -158,9 +158,7 @@ type RebootOperation struct {
 	message       string
 	subcomponents []*tpb.Path
 	force         bool
-	wait          time.Duration
-	rebootStatus  bool
-	cancelStatus  bool
+	timeout       time.Duration
 }
 
 // NewRebootOperation creates an empty RebootOperation.
@@ -198,49 +196,49 @@ func (r *RebootOperation) Force(force bool) *RebootOperation {
 	return r
 }
 
-// Wait specifies the duration to wait before checking status for reboot or cancel.
-func (r *RebootOperation) Wait(wait time.Duration) *RebootOperation {
-	r.wait = wait
+// Timeout specifies the duration to keep polling for checking reboot status.
+func (r *RebootOperation) Timeout(wait time.Duration) *RebootOperation {
+	r.timeout = wait
 	return r
 }
 
-// RebootWithStatus reboots the subcomponents and returns the status on Execute.
-func (r *RebootOperation) RebootWithStatus() *RebootOperation {
-	r.rebootStatus = true
-	r.cancelStatus = false
-	return r
-}
-
-// CancelWithStatus cancels the reboot of the subcomponents and returns the status on Execute.
-func (r *RebootOperation) CancelWithStatus() *RebootOperation {
-	r.rebootStatus = false
-	r.cancelStatus = true
-	return r
-}
-
-// Execute performs the Reboot or Cancel operation.
+// Execute performs the Reboot and polls and returns RebootStatus until timeout or reboot is active.
 func (r *RebootOperation) Execute(ctx context.Context, c *internal.Clients) (*spb.RebootStatusResponse, error) {
-	if r.rebootStatus {
-		_, err := c.System().Reboot(ctx, &spb.RebootRequest{
-			Method:        r.rebootMethod,
-			Delay:         uint64(r.delay.Nanoseconds()),
-			Message:       r.message,
-			Subcomponents: r.subcomponents,
-			Force:         r.force,
-		})
-		if err != nil {
-			return nil, err
-		}
-		time.Sleep(r.wait)
+	if _, err := c.System().Reboot(ctx, &spb.RebootRequest{
+		Method:        r.rebootMethod,
+		Delay:         uint64(r.delay.Nanoseconds()),
+		Message:       r.message,
+		Subcomponents: r.subcomponents,
+		Force:         r.force,
+	}); err != nil {
+		return nil, err
 	}
-	if r.cancelStatus {
-		_, err := c.System().CancelReboot(ctx, &spb.CancelRebootRequest{Subcomponents: r.subcomponents})
-		if err != nil {
-			return nil, err
+
+	statusTimeout := time.Now().Add(r.timeout)
+
+	for {
+		select {
+		case <-ctx.Done():
+			// If the context is cancelled, cancel the Reboot.
+			if _, err := c.System().CancelReboot(ctx, &spb.CancelRebootRequest{
+				Subcomponents: r.subcomponents,
+			}); err != nil {
+				return nil, err
+			}
+		default:
+			resp, err := c.System().RebootStatus(ctx, &spb.RebootStatusRequest{Subcomponents: r.subcomponents})
+			if err != nil {
+				return nil, err
+			}
+			if resp.GetActive() {
+				return resp, nil
+			}
+			time.Sleep(time.Duration(resp.GetWait()))
+			if time.Now().After(statusTimeout) {
+				return c.System().RebootStatus(ctx, &spb.RebootStatusRequest{Subcomponents: r.subcomponents})
+			}
 		}
-		time.Sleep(r.wait)
 	}
-	return c.System().RebootStatus(ctx, &spb.RebootStatusRequest{Subcomponents: r.subcomponents})
 }
 
 // SwitchControlProcessorOperation represents the parameters of a SwitchControlProcessor operation.

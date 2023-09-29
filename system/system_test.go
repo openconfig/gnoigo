@@ -20,6 +20,7 @@ import (
 	"io"
 	"strings"
 	"testing"
+	"time"
 
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/testing/protocmp"
@@ -188,31 +189,10 @@ func TestReboot(t *testing.T) {
 		op                                                   *system.RebootOperation
 		want                                                 *spb.RebootStatusResponse
 		wantRebootErr, wantStatusErr, wantCancelErr, wantErr string
+		cancelContext                                        bool
 	}{
 		{
-			desc: "Test RebootwithStatus",
-			op: system.NewRebootOperation().RebootMethod(spb.RebootMethod_COLD).Subcomponents([]*tpb.Path{{
-				Elem: []*tpb.PathElem{
-					{Name: "components"},
-					{Name: "component", Key: map[string]string{"name": "RP0"}},
-				},
-			}}).RebootWithStatus(),
-			want: &spb.RebootStatusResponse{Active: true},
-		},
-		{
-			desc:          "RebootwithStatus returns error on reboot",
-			op:            system.NewRebootOperation().RebootMethod(spb.RebootMethod_COLD).RebootWithStatus(),
-			wantRebootErr: "Reboot operation error",
-			wantErr:       "Reboot operation error",
-		},
-		{
-			desc:          "RebootwithStatus returns error on status",
-			op:            system.NewRebootOperation().RebootMethod(spb.RebootMethod_COLD).RebootWithStatus(),
-			wantStatusErr: "RebootStatus operation error",
-			wantErr:       "RebootStatus operation error",
-		},
-		{
-			desc: "Test RebootStatus",
+			desc: "test reboot",
 			op: system.NewRebootOperation().RebootMethod(spb.RebootMethod_COLD).Subcomponents([]*tpb.Path{{
 				Elem: []*tpb.PathElem{
 					{Name: "components"},
@@ -222,32 +202,23 @@ func TestReboot(t *testing.T) {
 			want: &spb.RebootStatusResponse{Active: true},
 		},
 		{
-			desc:          "RebootStatus returns error",
+			desc:          "reboot returns error on reboot",
 			op:            system.NewRebootOperation().RebootMethod(spb.RebootMethod_COLD),
-			wantStatusErr: "RebootStatus operation error",
-			wantErr:       "RebootStatus operation error",
+			wantRebootErr: "reboot operation error",
+			wantErr:       "reboot operation error",
 		},
 		{
-			desc: "Test CancelRebootwithStatus",
-			op: system.NewRebootOperation().RebootMethod(spb.RebootMethod_COLD).Subcomponents([]*tpb.Path{{
-				Elem: []*tpb.PathElem{
-					{Name: "components"},
-					{Name: "component", Key: map[string]string{"name": "RP0"}},
-				},
-			}}).CancelWithStatus(),
-			want: &spb.RebootStatusResponse{Active: true},
+			desc:          "reboot returns error on status",
+			op:            system.NewRebootOperation().RebootMethod(spb.RebootMethod_COLD),
+			wantStatusErr: "rebootStatus operation error",
+			wantErr:       "rebootStatus operation error",
 		},
 		{
-			desc:          "CancelRebootwithStatus returns error on cancel",
-			op:            system.NewRebootOperation().RebootMethod(spb.RebootMethod_COLD).CancelWithStatus(),
-			wantCancelErr: "CancelReboot operation error",
-			wantErr:       "CancelReboot operation error",
-		},
-		{
-			desc:          "CancelRebootwithStatus returns error on status",
-			op:            system.NewRebootOperation().RebootMethod(spb.RebootMethod_COLD).CancelWithStatus(),
-			wantStatusErr: "RebootStatus operation error",
-			wantErr:       "RebootStatus operation error",
+			desc:          "reboot returns error on cancel",
+			op:            system.NewRebootOperation().RebootMethod(spb.RebootMethod_COLD).Timeout(2 * time.Second),
+			wantCancelErr: "rebootCancel operation error",
+			wantErr:       "rebootCancel operation error",
+			cancelContext: true,
 		},
 	}
 	for _, tt := range tests {
@@ -273,7 +244,14 @@ func TestReboot(t *testing.T) {
 					return nil, nil
 				}}
 
-			got, gotErr := tt.op.Execute(context.Background(), &fakeClient)
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
+			if tt.cancelContext {
+				cancel()
+			}
+
+			got, gotErr := tt.op.Execute(ctx, &fakeClient)
 			if (gotErr == nil) != (tt.wantErr == "") || (gotErr != nil && !strings.Contains(gotErr.Error(), tt.wantErr)) {
 				t.Errorf("Execute() got unexpected error %v want %s", gotErr, tt.wantErr)
 			}
