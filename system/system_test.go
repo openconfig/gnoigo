@@ -185,7 +185,8 @@ func TestReboot(t *testing.T) {
 		op                 *system.RebootOperation
 		want               *spb.RebootResponse
 		rebootErr, wantErr string
-		statusErr          []error
+		statusErrs         []error
+		statusResps        []*spb.RebootStatusResponse
 		cancelContext      bool
 	}{
 		{
@@ -199,21 +200,29 @@ func TestReboot(t *testing.T) {
 			want: &spb.RebootResponse{},
 		},
 		{
-			desc: "Test reboot wait for active status",
-			op:   system.NewRebootOperation().RebootMethod(spb.RebootMethod_COLD).WaitForActive(true),
-			want: &spb.RebootResponse{},
+			desc:        "Test reboot wait for active status",
+			op:          system.NewRebootOperation().RebootMethod(spb.RebootMethod_COLD).WaitForActive(true),
+			statusResps: []*spb.RebootStatusResponse{{Active: true}},
+			want:        &spb.RebootResponse{},
 		},
 		{
-			desc:      "Test reboot wait for active status and ignore unavailable error",
-			op:        system.NewRebootOperation().RebootMethod(spb.RebootMethod_COLD).WaitForActive(true).IgnoreUnavailableErr(true),
-			statusErr: []error{status.Errorf(codes.Unavailable, "unavailable")},
-			want:      &spb.RebootResponse{},
+			desc:        "Test reboot wait for active status and ignore unavailable error",
+			op:          system.NewRebootOperation().RebootMethod(spb.RebootMethod_COLD).WaitForActive(true).IgnoreUnavailableErr(true),
+			statusErrs:  []error{status.Errorf(codes.Unavailable, "unavailable")},
+			statusResps: []*spb.RebootStatusResponse{{Active: true}},
+			want:        &spb.RebootResponse{},
 		},
 		{
-			desc:      "Test reboot wait for active status returns unknown error",
-			op:        system.NewRebootOperation().RebootMethod(spb.RebootMethod_COLD).WaitForActive(true).IgnoreUnavailableErr(true),
-			statusErr: []error{status.Errorf(codes.Unknown, "unknown")},
-			wantErr:   "unknown",
+			desc:        "Test reboot with non active status response",
+			op:          system.NewRebootOperation().RebootMethod(spb.RebootMethod_COLD).WaitForActive(true),
+			statusResps: []*spb.RebootStatusResponse{{Active: false, Wait: 2}, {Active: true}},
+			want:        &spb.RebootResponse{},
+		},
+		{
+			desc:       "Test reboot wait for active status returns unknown error",
+			op:         system.NewRebootOperation().RebootMethod(spb.RebootMethod_COLD).WaitForActive(true).IgnoreUnavailableErr(true),
+			statusErrs: []error{status.Errorf(codes.Unknown, "unknown")},
+			wantErr:    "unknown",
 		},
 		{
 			desc:      "Test reboot returns error on reboot",
@@ -222,14 +231,15 @@ func TestReboot(t *testing.T) {
 			wantErr:   "Reboot operation error",
 		},
 		{
-			desc:      "Test reboot returns error on reboot status",
-			op:        system.NewRebootOperation().RebootMethod(spb.RebootMethod_COLD).WaitForActive(true),
-			statusErr: []error{status.Errorf(codes.Unavailable, "unavailable")},
-			wantErr:   "unavailable",
+			desc:       "Test reboot returns error on reboot status",
+			op:         system.NewRebootOperation().RebootMethod(spb.RebootMethod_COLD).WaitForActive(true),
+			statusErrs: []error{status.Errorf(codes.Unavailable, "unavailable")},
+			wantErr:    "unavailable",
 		},
 		{
 			desc:          "Test reboot with context cancel",
 			op:            system.NewRebootOperation().RebootMethod(spb.RebootMethod_COLD).WaitForActive(true),
+			statusResps:   []*spb.RebootStatusResponse{{Wait: 20}},
 			wantErr:       "context",
 			cancelContext: true,
 		},
@@ -245,12 +255,17 @@ func TestReboot(t *testing.T) {
 					return tt.want, nil
 				},
 				RebootStatusFn: func(context.Context, *spb.RebootStatusRequest, ...grpc.CallOption) (*spb.RebootStatusResponse, error) {
-					if len(tt.statusErr) > 0 {
-						statusErr := tt.statusErr[0]
-						tt.statusErr = tt.statusErr[1:]
+					if len(tt.statusErrs) > 0 {
+						statusErr := tt.statusErrs[0]
+						tt.statusErrs = tt.statusErrs[1:]
 						return nil, statusErr
 					}
-					return &spb.RebootStatusResponse{Active: true}, nil
+					if len(tt.statusResps) > 0 {
+						statusResp := tt.statusResps[0]
+						tt.statusResps = tt.statusResps[1:]
+						return statusResp, nil
+					}
+					return &spb.RebootStatusResponse{}, nil
 				}}
 
 			ctx, cancel := context.WithCancel(context.Background())

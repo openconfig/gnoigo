@@ -227,20 +227,25 @@ func (r *RebootOperation) Execute(ctx context.Context, c *internal.Clients) (*sp
 
 	if r.waitForActive {
 		for {
+			rebootStatus, statusErr := c.System().RebootStatus(ctx, &spb.RebootStatusRequest{Subcomponents: r.subcomponents})
+			var waitTime time.Duration
+
+			switch {
+			case status.Code(statusErr) == codes.Unavailable && r.ignoreUnavailableErr:
+				waitTime = 10 * time.Second
+			case statusErr != nil:
+				return nil, statusErr
+			case rebootStatus.GetActive():
+				return resp, nil
+			default:
+				waitTime = time.Duration(rebootStatus.GetWait()) * time.Second
+			}
+
 			select {
 			case <-ctx.Done():
 				return nil, ctx.Err()
-			case <-time.After(10 * time.Second):
-				rebootStatus, statusErr := c.System().RebootStatus(ctx, &spb.RebootStatusRequest{Subcomponents: r.subcomponents})
-				if status.Code(statusErr) == codes.Unavailable && r.ignoreUnavailableErr {
-					continue
-				}
-				if statusErr != nil {
-					return nil, statusErr
-				}
-				if rebootStatus.GetActive() {
-					return resp, nil
-				}
+			case <-time.After(waitTime):
+				continue
 			}
 		}
 	}
