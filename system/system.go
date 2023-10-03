@@ -22,6 +22,8 @@ import (
 
 	spb "github.com/openconfig/gnoi/system"
 	tpb "github.com/openconfig/gnoi/types"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"github.com/openconfig/gnoigo/internal"
 )
@@ -153,12 +155,13 @@ func (p *PingOperation) Execute(ctx context.Context, c *internal.Clients) ([]*sp
 
 // RebootOperation represents the parameters of a Reboot operation.
 type RebootOperation struct {
-	rebootMethod  spb.RebootMethod
-	delay         time.Duration
-	message       string
-	subcomponents []*tpb.Path
-	force         bool
-	timeout       time.Duration
+	rebootMethod         spb.RebootMethod
+	delay                time.Duration
+	message              string
+	subcomponents        []*tpb.Path
+	force                bool
+	ignoreUnavailableErr bool
+	waitForActive        bool
 }
 
 // NewRebootOperation creates an empty RebootOperation.
@@ -196,50 +199,53 @@ func (r *RebootOperation) Force(force bool) *RebootOperation {
 	return r
 }
 
-// Timeout specifies the duration to keep polling for checking reboot status.
-func (r *RebootOperation) Timeout(wait time.Duration) *RebootOperation {
-	r.timeout = wait
+// IgnoreUnavailableErr ignores unavailable errors returned by reboot status.
+func (r *RebootOperation) IgnoreUnavailableErr(ignoreUnavailableErr bool) *RebootOperation {
+	r.ignoreUnavailableErr = ignoreUnavailableErr
 	return r
 }
 
-// Execute reboots the system and returns the RebootStatus after a timeout or when RebootStatus is active.
-// It will call CancelReboot if the context is canceled.
-func (r *RebootOperation) Execute(ctx context.Context, c *internal.Clients) (*spb.RebootStatusResponse, error) {
-	if _, err := c.System().Reboot(ctx, &spb.RebootRequest{
+// WaitForActive waits until RebootResponse returns active.
+func (r *RebootOperation) WaitForActive(waitForActive bool) *RebootOperation {
+	r.waitForActive = waitForActive
+	return r
+}
+
+// Execute performs the Reboot operation and will wait for rebootStatus to be active if waitForActive is set to true.
+func (r *RebootOperation) Execute(ctx context.Context, c *internal.Clients) (*spb.RebootResponse, error) {
+	resp, err := c.System().Reboot(ctx, &spb.RebootRequest{
 		Method:        r.rebootMethod,
 		Delay:         uint64(r.delay.Nanoseconds()),
 		Message:       r.message,
 		Subcomponents: r.subcomponents,
 		Force:         r.force,
-	}); err != nil {
+	})
+
+	if err != nil {
 		return nil, err
 	}
 
-	statusTimeout := time.Now().Add(r.timeout)
-
-	for {
-		select {
-		case <-ctx.Done():
-			// If the context is cancelled, cancel the Reboot.
-			if _, err := c.System().CancelReboot(ctx, &spb.CancelRebootRequest{
-				Subcomponents: r.subcomponents,
-			}); err != nil {
-				return nil, err
-			}
-		default:
-			resp, err := c.System().RebootStatus(ctx, &spb.RebootStatusRequest{Subcomponents: r.subcomponents})
-			if err != nil {
-				return nil, err
-			}
-			if resp.GetActive() {
-				return resp, nil
-			}
-			time.Sleep(time.Duration(resp.GetWait()))
-			if time.Now().After(statusTimeout) {
-				return c.System().RebootStatus(ctx, &spb.RebootStatusRequest{Subcomponents: r.subcomponents})
+	if r.waitForActive {
+		for {
+			select {
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			case <-time.After(10 * time.Second):
+				rebootStatus, statusErr := c.System().RebootStatus(ctx, &spb.RebootStatusRequest{Subcomponents: r.subcomponents})
+				if status.Code(statusErr) == codes.Unavailable && r.ignoreUnavailableErr {
+					continue
+				}
+				if statusErr != nil {
+					return nil, statusErr
+				}
+				if rebootStatus.GetActive() {
+					return resp, nil
+				}
 			}
 		}
 	}
+
+	return resp, nil
 }
 
 // SwitchControlProcessorOperation represents the parameters of a SwitchControlProcessor operation.

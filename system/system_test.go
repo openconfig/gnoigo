@@ -20,9 +20,10 @@ import (
 	"io"
 	"strings"
 	"testing"
-	"time"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/testing/protocmp"
 
 	"github.com/google/go-cmp/cmp"
@@ -185,39 +186,56 @@ func TestPing(t *testing.T) {
 
 func TestReboot(t *testing.T) {
 	tests := []struct {
-		desc                                                 string
-		op                                                   *system.RebootOperation
-		want                                                 *spb.RebootStatusResponse
-		wantRebootErr, wantStatusErr, wantCancelErr, wantErr string
-		cancelContext                                        bool
+		desc               string
+		op                 *system.RebootOperation
+		want               *spb.RebootResponse
+		rebootErr, wantErr string
+		statusErr          []error
+		cancelContext      bool
 	}{
 		{
-			desc: "test reboot",
+			desc: "Test reboot",
 			op: system.NewRebootOperation().RebootMethod(spb.RebootMethod_COLD).Subcomponents([]*tpb.Path{{
 				Elem: []*tpb.PathElem{
 					{Name: "components"},
 					{Name: "component", Key: map[string]string{"name": "RP0"}},
 				},
 			}}),
-			want: &spb.RebootStatusResponse{Active: true},
+			want: &spb.RebootResponse{},
 		},
 		{
-			desc:          "reboot returns error on reboot",
-			op:            system.NewRebootOperation().RebootMethod(spb.RebootMethod_COLD),
-			wantRebootErr: "reboot operation error",
-			wantErr:       "reboot operation error",
+			desc: "Test reboot wait for active status",
+			op:   system.NewRebootOperation().RebootMethod(spb.RebootMethod_COLD).WaitForActive(true),
+			want: &spb.RebootResponse{},
 		},
 		{
-			desc:          "reboot returns error on status",
-			op:            system.NewRebootOperation().RebootMethod(spb.RebootMethod_COLD),
-			wantStatusErr: "rebootStatus operation error",
-			wantErr:       "rebootStatus operation error",
+			desc:      "Test reboot wait for active status and ignore unavailable error",
+			op:        system.NewRebootOperation().RebootMethod(spb.RebootMethod_COLD).WaitForActive(true).IgnoreUnavailableErr(true),
+			statusErr: []error{status.Errorf(codes.Unavailable, "unavailable")},
+			want:      &spb.RebootResponse{},
 		},
 		{
-			desc:          "reboot returns error on cancel",
-			op:            system.NewRebootOperation().RebootMethod(spb.RebootMethod_COLD).Timeout(2 * time.Second),
-			wantCancelErr: "rebootCancel operation error",
-			wantErr:       "rebootCancel operation error",
+			desc:      "Test reboot wait for active status returns unknown error",
+			op:        system.NewRebootOperation().RebootMethod(spb.RebootMethod_COLD).WaitForActive(true).IgnoreUnavailableErr(true),
+			statusErr: []error{status.Errorf(codes.Unknown, "unknown")},
+			wantErr:   "unknown",
+		},
+		{
+			desc:      "Test reboot returns error on reboot",
+			op:        system.NewRebootOperation().RebootMethod(spb.RebootMethod_COLD),
+			rebootErr: "Reboot operation error",
+			wantErr:   "Reboot operation error",
+		},
+		{
+			desc:      "Test reboot returns error on reboot status",
+			op:        system.NewRebootOperation().RebootMethod(spb.RebootMethod_COLD).WaitForActive(true),
+			statusErr: []error{status.Errorf(codes.Unavailable, "unavailable")},
+			wantErr:   "unavailable",
+		},
+		{
+			desc:          "Test reboot with context cancel",
+			op:            system.NewRebootOperation().RebootMethod(spb.RebootMethod_COLD).WaitForActive(true),
+			wantErr:       "context",
 			cancelContext: true,
 		},
 	}
@@ -226,27 +244,22 @@ func TestReboot(t *testing.T) {
 			var fakeClient internal.Clients
 			fakeClient.SystemClient = &fakeSystemClient{
 				RebootFn: func(context.Context, *spb.RebootRequest, ...grpc.CallOption) (*spb.RebootResponse, error) {
-					if tt.wantRebootErr != "" {
-						return nil, fmt.Errorf(tt.wantRebootErr)
-					}
-					return nil, nil
-				},
-				RebootStatusFn: func(context.Context, *spb.RebootStatusRequest, ...grpc.CallOption) (*spb.RebootStatusResponse, error) {
-					if tt.wantStatusErr != "" {
-						return nil, fmt.Errorf(tt.wantStatusErr)
+					if tt.rebootErr != "" {
+						return nil, fmt.Errorf(tt.rebootErr)
 					}
 					return tt.want, nil
 				},
-				CancelRebootFn: func(context.Context, *spb.CancelRebootRequest, ...grpc.CallOption) (*spb.CancelRebootResponse, error) {
-					if tt.wantCancelErr != "" {
-						return nil, fmt.Errorf(tt.wantCancelErr)
+				RebootStatusFn: func(context.Context, *spb.RebootStatusRequest, ...grpc.CallOption) (*spb.RebootStatusResponse, error) {
+					if len(tt.statusErr) > 0 {
+						statusErr := tt.statusErr[0]
+						tt.statusErr = tt.statusErr[1:]
+						return nil, statusErr
 					}
-					return nil, nil
+					return &spb.RebootStatusResponse{Active: true}, nil
 				}}
 
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
-
 			if tt.cancelContext {
 				cancel()
 			}
