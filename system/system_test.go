@@ -35,7 +35,6 @@ import (
 
 type fakeSystemClient struct {
 	spb.SystemClient
-	CancelRebootFn           func(context.Context, *spb.CancelRebootRequest, ...grpc.CallOption) (*spb.CancelRebootResponse, error)
 	KillProcessFn            func(context.Context, *spb.KillProcessRequest, ...grpc.CallOption) (*spb.KillProcessResponse, error)
 	PingFn                   func(context.Context, *spb.PingRequest, ...grpc.CallOption) (spb.System_PingClient, error)
 	RebootFn                 func(context.Context, *spb.RebootRequest, ...grpc.CallOption) (*spb.RebootResponse, error)
@@ -47,10 +46,6 @@ type fakeSystemClient struct {
 
 func (fg *fakeSystemClient) System() spb.SystemClient {
 	return fg
-}
-
-func (fg *fakeSystemClient) CancelReboot(ctx context.Context, in *spb.CancelRebootRequest, opts ...grpc.CallOption) (*spb.CancelRebootResponse, error) {
-	return fg.CancelRebootFn(ctx, in, opts...)
 }
 
 func (fg *fakeSystemClient) KillProcess(ctx context.Context, in *spb.KillProcessRequest, opts ...grpc.CallOption) (*spb.KillProcessResponse, error) {
