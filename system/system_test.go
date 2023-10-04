@@ -22,6 +22,8 @@ import (
 	"testing"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/testing/protocmp"
 
 	"github.com/google/go-cmp/cmp"
@@ -35,6 +37,8 @@ type fakeSystemClient struct {
 	spb.SystemClient
 	KillProcessFn            func(context.Context, *spb.KillProcessRequest, ...grpc.CallOption) (*spb.KillProcessResponse, error)
 	PingFn                   func(context.Context, *spb.PingRequest, ...grpc.CallOption) (spb.System_PingClient, error)
+	RebootFn                 func(context.Context, *spb.RebootRequest, ...grpc.CallOption) (*spb.RebootResponse, error)
+	RebootStatusFn           func(context.Context, *spb.RebootStatusRequest, ...grpc.CallOption) (*spb.RebootStatusResponse, error)
 	SwitchControlProcessorFn func(context.Context, *spb.SwitchControlProcessorRequest, ...grpc.CallOption) (*spb.SwitchControlProcessorResponse, error)
 	TimeFn                   func(context.Context, *spb.TimeRequest, ...grpc.CallOption) (*spb.TimeResponse, error)
 	TracerouteFn             func(context.Context, *spb.TracerouteRequest, ...grpc.CallOption) (spb.System_TracerouteClient, error)
@@ -56,27 +60,20 @@ func (fg *fakeSystemClient) SwitchControlProcessor(ctx context.Context, in *spb.
 	return fg.SwitchControlProcessorFn(ctx, in, opts...)
 }
 
+func (fg *fakeSystemClient) Reboot(ctx context.Context, in *spb.RebootRequest, opts ...grpc.CallOption) (*spb.RebootResponse, error) {
+	return fg.RebootFn(ctx, in, opts...)
+}
+
+func (fg *fakeSystemClient) RebootStatus(ctx context.Context, in *spb.RebootStatusRequest, opts ...grpc.CallOption) (*spb.RebootStatusResponse, error) {
+	return fg.RebootStatusFn(ctx, in, opts...)
+}
+
 func (fg *fakeSystemClient) Time(ctx context.Context, in *spb.TimeRequest, opts ...grpc.CallOption) (*spb.TimeResponse, error) {
 	return fg.TimeFn(ctx, in, opts...)
 }
 
 func (fg *fakeSystemClient) Traceroute(ctx context.Context, in *spb.TracerouteRequest, opts ...grpc.CallOption) (spb.System_TracerouteClient, error) {
 	return fg.TracerouteFn(ctx, in, opts...)
-}
-
-type fakePingClient struct {
-	spb.System_PingClient
-	resp []*spb.PingResponse
-	err  error
-}
-
-func (pc *fakePingClient) Recv() (*spb.PingResponse, error) {
-	if len(pc.resp) == 0 && pc.err == nil {
-		return nil, io.EOF
-	}
-	resp := pc.resp[0]
-	pc.resp = pc.resp[1:]
-	return resp, pc.err
 }
 
 func TestKillProcess(t *testing.T) {
@@ -118,19 +115,19 @@ func TestKillProcess(t *testing.T) {
 	}
 }
 
-type fakeTracerouteClient struct {
-	spb.System_TracerouteClient
-	resp []*spb.TracerouteResponse
+type fakePingClient struct {
+	spb.System_PingClient
+	resp []*spb.PingResponse
 	err  error
 }
 
-func (tc *fakeTracerouteClient) Recv() (*spb.TracerouteResponse, error) {
-	if len(tc.resp) == 0 && tc.err == nil {
+func (pc *fakePingClient) Recv() (*spb.PingResponse, error) {
+	if len(pc.resp) == 0 && pc.err == nil {
 		return nil, io.EOF
 	}
-	resp := tc.resp[0]
-	tc.resp = tc.resp[1:]
-	return resp, tc.err
+	resp := pc.resp[0]
+	pc.resp = pc.resp[1:]
+	return resp, pc.err
 }
 
 func TestPing(t *testing.T) {
@@ -177,6 +174,112 @@ func TestPing(t *testing.T) {
 			}
 			if diff := cmp.Diff(tt.want, got, protocmp.Transform()); diff != "" {
 				t.Errorf("Execute() got unexpected response diff (-want +got): %s", diff)
+			}
+		})
+	}
+}
+
+func TestReboot(t *testing.T) {
+	tests := []struct {
+		desc               string
+		op                 *system.RebootOperation
+		want               *spb.RebootResponse
+		rebootErr, wantErr string
+		statusErrs         []error
+		statusResps        []*spb.RebootStatusResponse
+		cancelContext      bool
+	}{
+		{
+			desc: "Test reboot",
+			op: system.NewRebootOperation().RebootMethod(spb.RebootMethod_COLD).Subcomponents([]*tpb.Path{{
+				Elem: []*tpb.PathElem{
+					{Name: "components"},
+					{Name: "component", Key: map[string]string{"name": "RP0"}},
+				},
+			}}),
+			want: &spb.RebootResponse{},
+		},
+		{
+			desc:        "Test reboot wait for active status",
+			op:          system.NewRebootOperation().RebootMethod(spb.RebootMethod_COLD).WaitForActive(true),
+			statusResps: []*spb.RebootStatusResponse{{Active: true}},
+			want:        &spb.RebootResponse{},
+		},
+		{
+			desc:        "Test reboot wait for active status and ignore unavailable error",
+			op:          system.NewRebootOperation().RebootMethod(spb.RebootMethod_COLD).WaitForActive(true).IgnoreUnavailableErr(true),
+			statusErrs:  []error{status.Errorf(codes.Unavailable, "unavailable")},
+			statusResps: []*spb.RebootStatusResponse{{Active: true}},
+			want:        &spb.RebootResponse{},
+		},
+		{
+			desc:        "Test reboot with non active status response",
+			op:          system.NewRebootOperation().RebootMethod(spb.RebootMethod_COLD).WaitForActive(true),
+			statusResps: []*spb.RebootStatusResponse{{Active: false, Wait: 2}, {Active: true}},
+			want:        &spb.RebootResponse{},
+		},
+		{
+			desc:       "Test reboot wait for active status returns unknown error",
+			op:         system.NewRebootOperation().RebootMethod(spb.RebootMethod_COLD).WaitForActive(true).IgnoreUnavailableErr(true),
+			statusErrs: []error{status.Errorf(codes.Unknown, "unknown")},
+			wantErr:    "unknown",
+		},
+		{
+			desc:      "Test reboot returns error on reboot",
+			op:        system.NewRebootOperation().RebootMethod(spb.RebootMethod_COLD),
+			rebootErr: "Reboot operation error",
+			wantErr:   "Reboot operation error",
+		},
+		{
+			desc:       "Test reboot returns error on reboot status",
+			op:         system.NewRebootOperation().RebootMethod(spb.RebootMethod_COLD).WaitForActive(true),
+			statusErrs: []error{status.Errorf(codes.Unavailable, "unavailable")},
+			wantErr:    "unavailable",
+		},
+		{
+			desc:          "Test reboot with context cancel",
+			op:            system.NewRebootOperation().RebootMethod(spb.RebootMethod_COLD).WaitForActive(true),
+			statusResps:   []*spb.RebootStatusResponse{{Wait: 20}},
+			wantErr:       "context",
+			cancelContext: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			var fakeClient internal.Clients
+			fakeClient.SystemClient = &fakeSystemClient{
+				RebootFn: func(context.Context, *spb.RebootRequest, ...grpc.CallOption) (*spb.RebootResponse, error) {
+					if tt.rebootErr != "" {
+						return nil, fmt.Errorf(tt.rebootErr)
+					}
+					return tt.want, nil
+				},
+				RebootStatusFn: func(context.Context, *spb.RebootStatusRequest, ...grpc.CallOption) (*spb.RebootStatusResponse, error) {
+					if len(tt.statusErrs) > 0 {
+						statusErr := tt.statusErrs[0]
+						tt.statusErrs = tt.statusErrs[1:]
+						return nil, statusErr
+					}
+					if len(tt.statusResps) > 0 {
+						statusResp := tt.statusResps[0]
+						tt.statusResps = tt.statusResps[1:]
+						return statusResp, nil
+					}
+					return &spb.RebootStatusResponse{}, nil
+				}}
+
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			if tt.cancelContext {
+				cancel()
+			}
+
+			got, gotErr := tt.op.Execute(ctx, &fakeClient)
+			if (gotErr == nil) != (tt.wantErr == "") || (gotErr != nil && !strings.Contains(gotErr.Error(), tt.wantErr)) {
+				t.Errorf("Execute() got unexpected error %v want %s", gotErr, tt.wantErr)
+			}
+			if tt.want != got {
+				t.Errorf("Execute() got unexpected response want %v got %v", tt.want, got)
 			}
 		})
 	}
@@ -279,6 +382,21 @@ func TestTime(t *testing.T) {
 			}
 		})
 	}
+}
+
+type fakeTracerouteClient struct {
+	spb.System_TracerouteClient
+	resp []*spb.TracerouteResponse
+	err  error
+}
+
+func (tc *fakeTracerouteClient) Recv() (*spb.TracerouteResponse, error) {
+	if len(tc.resp) == 0 && tc.err == nil {
+		return nil, io.EOF
+	}
+	resp := tc.resp[0]
+	tc.resp = tc.resp[1:]
+	return resp, tc.err
 }
 
 func TestTraceroute(t *testing.T) {
