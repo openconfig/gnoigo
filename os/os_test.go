@@ -88,6 +88,7 @@ func TestInstall(t *testing.T) {
 		op            *gos.InstallOperation
 		resps         []*ospb.InstallResponse
 		want          *ospb.InstallResponse
+		installErr    string
 		wantErr       string
 		cancelContext bool
 	}{
@@ -98,6 +99,13 @@ func TestInstall(t *testing.T) {
 				{Response: &ospb.InstallResponse_Validated{Validated: &ospb.Validated{Version: version}}},
 			},
 			want: &ospb.InstallResponse{Response: &ospb.InstallResponse_Validated{Validated: &ospb.Validated{Version: version}}},
+		},
+		{
+			desc:       "install returns error",
+			op:         gos.NewInstallOperation().Version(version),
+			resps:      []*ospb.InstallResponse{},
+			installErr: "install error",
+			wantErr:    "install error",
 		},
 		{
 			desc: "install with context cancel",
@@ -141,8 +149,8 @@ func TestInstall(t *testing.T) {
 		t.Run(tt.desc, func(t *testing.T) {
 			var fakeClient internal.Clients
 			fakeClient.OSClient = &fakeOSClient{InstallFn: func(context.Context, ...grpc.CallOption) (ospb.OS_InstallClient, error) {
-				if tt.wantErr != "" {
-					return nil, fmt.Errorf(tt.wantErr)
+				if tt.installErr != "" {
+					return nil, fmt.Errorf(tt.installErr)
 				}
 				return &fakeInstallClient{stubRecv: tt.resps}, nil
 			}}
