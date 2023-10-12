@@ -155,47 +155,43 @@ func (p *PingOperation) Execute(ctx context.Context, c *internal.Clients) ([]*sp
 
 // RebootOperation represents the parameters of a Reboot operation.
 type RebootOperation struct {
-	rebootMethod         spb.RebootMethod
-	delay                time.Duration
-	message              string
-	subcomponents        []*tpb.Path
-	force                bool
+	req                  *spb.RebootRequest
 	ignoreUnavailableErr bool
 	waitForActive        bool
 }
 
 // NewRebootOperation creates an empty RebootOperation.
 func NewRebootOperation() *RebootOperation {
-	return &RebootOperation{}
+	return &RebootOperation{req: &spb.RebootRequest{}}
 }
 
 // RebootMethod specifies method to reboot.
 func (r *RebootOperation) RebootMethod(rebootMethod spb.RebootMethod) *RebootOperation {
-	r.rebootMethod = rebootMethod
+	r.req.Method = rebootMethod
 	return r
 }
 
 // Delay specifies time in nanoseconds to wait before issuing reboot.
 func (r *RebootOperation) Delay(delay time.Duration) *RebootOperation {
-	r.delay = delay
+	r.req.Delay = uint64(delay.Nanoseconds())
 	return r
 }
 
 // Message specifies informational reason for the reboot or cancel reboot.
 func (r *RebootOperation) Message(message string) *RebootOperation {
-	r.message = message
+	r.req.Message = message
 	return r
 }
 
 // Subcomponents specifies the sub-components to reboot.
 func (r *RebootOperation) Subcomponents(subcomponents []*tpb.Path) *RebootOperation {
-	r.subcomponents = subcomponents
+	r.req.Subcomponents = subcomponents
 	return r
 }
 
 // Force reboot if sanity checks fail.
 func (r *RebootOperation) Force(force bool) *RebootOperation {
-	r.force = force
+	r.req.Force = force
 	return r
 }
 
@@ -213,13 +209,7 @@ func (r *RebootOperation) WaitForActive(waitForActive bool) *RebootOperation {
 
 // Execute performs the Reboot operation and will wait for rebootStatus to be active if waitForActive is set to true.
 func (r *RebootOperation) Execute(ctx context.Context, c *internal.Clients) (*spb.RebootResponse, error) {
-	resp, err := c.System().Reboot(ctx, &spb.RebootRequest{
-		Method:        r.rebootMethod,
-		Delay:         uint64(r.delay.Nanoseconds()),
-		Message:       r.message,
-		Subcomponents: r.subcomponents,
-		Force:         r.force,
-	})
+	resp, err := c.System().Reboot(ctx, r.req)
 
 	if err != nil {
 		return nil, err
@@ -227,7 +217,7 @@ func (r *RebootOperation) Execute(ctx context.Context, c *internal.Clients) (*sp
 
 	if r.waitForActive {
 		for {
-			rebootStatus, statusErr := c.System().RebootStatus(ctx, &spb.RebootStatusRequest{Subcomponents: r.subcomponents})
+			rebootStatus, statusErr := c.System().RebootStatus(ctx, &spb.RebootStatusRequest{Subcomponents: r.req.GetSubcomponents()})
 			var waitTime time.Duration
 
 			switch {
