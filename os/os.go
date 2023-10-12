@@ -60,7 +60,7 @@ func NewInstallOperation() *InstallOperation {
 // (b) the device does not have the package, in which case it returns a nil response
 // (c) an error occurs, in which case it returns the error
 // (d) context is cancelled, in which case it returns the context error
-func awaitPackageInstall(ic ospb.OS_InstallClient, ctx context.Context) (*ospb.InstallResponse, error) {
+func awaitPackageInstall(ctx context.Context, ic ospb.OS_InstallClient) (*ospb.InstallResponse, error) {
 	for {
 		select {
 		case <-ctx.Done():
@@ -90,7 +90,7 @@ func awaitPackageInstall(ic ospb.OS_InstallClient, ctx context.Context) (*ospb.I
 	}
 }
 
-func transferContent(ic ospb.OS_InstallClient, reader io.Reader, ctx context.Context) error {
+func transferContent(ctx context.Context, ic ospb.OS_InstallClient, reader io.Reader) error {
 	// The gNOI SetPackage operation sets the maximum chunk size at 64K,
 	// so assuming the install operation allows for up to the same size.
 	buf := make([]byte, 64*1024)
@@ -148,34 +148,29 @@ func (i *InstallOperation) Execute(ctx context.Context, c *internal.Clients) (*o
 		return nil, err
 	}
 
-	select {
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	default:
-		installResp, err := awaitPackageInstall(ic, ctx)
-		if installResp != nil {
-			return installResp, nil
-		}
-		if err != nil {
-			return nil, err
-		}
-		if i.reader == nil {
-			return nil, fmt.Errorf("Did not specify reader for install operation")
-		}
-		awaitChan := make(chan error)
-		go func() {
-			installResp, err = awaitPackageInstall(ic, ctx)
-			awaitChan <- err
-		}()
-		if err := transferContent(ic, i.reader, ctx); err != nil {
-			return nil, err
-		}
-		if err := <-awaitChan; err != nil {
-			return nil, err
-		}
-		if gotVersion := installResp.GetValidated().GetVersion(); gotVersion != i.version {
-			return nil, fmt.Errorf("installed version %q does not match requested version %q", gotVersion, i.version)
-		}
+	installResp, err := awaitPackageInstall(ctx, ic)
+	if err != nil {
+		return nil, err
+	}
+	if installResp != nil {
 		return installResp, nil
 	}
+	if i.reader == nil {
+		return nil, fmt.Errorf("no reader specified for install operation")
+	}
+	awaitChan := make(chan error)
+	go func() {
+		installResp, err = awaitPackageInstall(ctx, ic)
+		awaitChan <- err
+	}()
+	if err := transferContent(ctx, ic, i.reader); err != nil {
+		return nil, err
+	}
+	if err := <-awaitChan; err != nil {
+		return nil, err
+	}
+	if gotVersion := installResp.GetValidated().GetVersion(); gotVersion != i.version {
+		return nil, fmt.Errorf("installed version %q does not match requested version %q", gotVersion, i.version)
+	}
+	return installResp, nil
 }

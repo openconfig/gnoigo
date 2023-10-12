@@ -122,6 +122,7 @@ func TestInstall(t *testing.T) {
 			op:   gos.NewInstallOperation().Version(version).Reader(bytes.NewReader([]byte{0})),
 			resps: []*ospb.InstallResponse{
 				{Response: &ospb.InstallResponse_TransferReady{TransferReady: &ospb.TransferReady{}}},
+				{Response: &ospb.InstallResponse_TransferProgress{TransferProgress: &ospb.TransferProgress{}}},
 				{Response: &ospb.InstallResponse_Validated{Validated: &ospb.Validated{Version: version}}},
 			},
 			want: &ospb.InstallResponse{Response: &ospb.InstallResponse_Validated{Validated: &ospb.Validated{Version: version}}},
