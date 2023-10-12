@@ -59,8 +59,15 @@ func NewInstallOperation() *InstallOperation {
 // (a) the package is installed and validated, in which case it returns the InstallResponse message
 // (b) the device does not have the package, in which case it returns a nil response
 // (c) an error occurs, in which case it returns the error
-func awaitPackageInstall(ic ospb.OS_InstallClient) (*ospb.InstallResponse, error) {
+// (d) context is cancelled, in which case it returns the context error
+func awaitPackageInstall(ic ospb.OS_InstallClient, ctx context.Context) (*ospb.InstallResponse, error) {
 	for {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+		}
+
 		cresp, err := ic.Recv()
 		if err != nil {
 			return nil, err
@@ -83,17 +90,25 @@ func awaitPackageInstall(ic ospb.OS_InstallClient) (*ospb.InstallResponse, error
 	}
 }
 
-func transferContent(ic ospb.OS_InstallClient, reader io.Reader) error {
+func transferContent(ic ospb.OS_InstallClient, reader io.Reader, ctx context.Context) error {
 	// The gNOI SetPackage operation sets the maximum chunk size at 64K,
 	// so assuming the install operation allows for up to the same size.
 	buf := make([]byte, 64*1024)
 	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
 		n, err := reader.Read(buf)
 		if n > 0 {
-			if err := ic.Send(&ospb.InstallRequest{
-				Request: &ospb.InstallRequest_TransferContent{
-					TransferContent: buf[0:n],
-				}}); err != nil {
+			if err := ic.Send(
+				&ospb.InstallRequest{
+					Request: &ospb.InstallRequest_TransferContent{
+						TransferContent: buf[0:n],
+					},
+				},
+			); err != nil {
 				return err
 			}
 		}
@@ -104,10 +119,13 @@ func transferContent(ic ospb.OS_InstallClient, reader io.Reader) error {
 			return err
 		}
 	}
-	return ic.Send(&ospb.InstallRequest{
-		Request: &ospb.InstallRequest_TransferEnd{
-			TransferEnd: &ospb.TransferEnd{},
-		}})
+	return ic.Send(
+		&ospb.InstallRequest{
+			Request: &ospb.InstallRequest_TransferEnd{
+				TransferEnd: &ospb.TransferEnd{},
+			},
+		},
+	)
 }
 
 // Execute performs the Install operation.
@@ -117,10 +135,14 @@ func (i *InstallOperation) Execute(ctx context.Context, c *internal.Clients) (*o
 		return nil, icErr
 	}
 
-	installReq := &ospb.InstallRequest{Request: &ospb.InstallRequest_TransferRequest{TransferRequest: &ospb.TransferRequest{
-		Version:           i.version,
-		StandbySupervisor: i.standby,
-	}}}
+	installReq := &ospb.InstallRequest{
+		Request: &ospb.InstallRequest_TransferRequest{
+			TransferRequest: &ospb.TransferRequest{
+				Version:           i.version,
+				StandbySupervisor: i.standby,
+			},
+		},
+	}
 
 	if err := ic.Send(installReq); err != nil {
 		return nil, err
@@ -130,7 +152,7 @@ func (i *InstallOperation) Execute(ctx context.Context, c *internal.Clients) (*o
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	default:
-		installResp, err := awaitPackageInstall(ic)
+		installResp, err := awaitPackageInstall(ic, ctx)
 		if installResp != nil {
 			return installResp, nil
 		}
@@ -142,10 +164,10 @@ func (i *InstallOperation) Execute(ctx context.Context, c *internal.Clients) (*o
 		}
 		awaitChan := make(chan error)
 		go func() {
-			installResp, err = awaitPackageInstall(ic)
+			installResp, err = awaitPackageInstall(ic, ctx)
 			awaitChan <- err
 		}()
-		if err := transferContent(ic, i.reader); err != nil {
+		if err := transferContent(ic, i.reader, ctx); err != nil {
 			return nil, err
 		}
 		if err := <-awaitChan; err != nil {

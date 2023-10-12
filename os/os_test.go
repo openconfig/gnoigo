@@ -15,6 +15,7 @@
 package os_test
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -23,14 +24,11 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"google.golang.org/grpc"
-
-	"google.golang.org/protobuf/testing/protocmp"
-
-	gos "github.com/openconfig/gnoigo/os"
-
 	ospb "github.com/openconfig/gnoi/os"
 	"github.com/openconfig/gnoigo/internal"
+	gos "github.com/openconfig/gnoigo/os"
+	"google.golang.org/grpc"
+	"google.golang.org/protobuf/testing/protocmp"
 )
 
 type fakeOSClient struct {
@@ -86,19 +84,56 @@ func TestInstall(t *testing.T) {
 	}
 
 	tests := []struct {
-		desc    string
-		op      *gos.InstallOperation
-		resps   []*ospb.InstallResponse
-		want    *ospb.InstallResponse
-		wantErr string
+		desc          string
+		op            *gos.InstallOperation
+		resps         []*ospb.InstallResponse
+		want          *ospb.InstallResponse
+		wantErr       string
+		cancelContext bool
 	}{
 		{
 			desc: "install with version",
 			op:   gos.NewInstallOperation().Version(version),
 			resps: []*ospb.InstallResponse{
-				{Response: &ospb.InstallResponse_Validated{&ospb.Validated{Version: version}}},
+				{Response: &ospb.InstallResponse_Validated{Validated: &ospb.Validated{Version: version}}},
 			},
-			want: &ospb.InstallResponse{Response: &ospb.InstallResponse_Validated{&ospb.Validated{Version: version}}},
+			want: &ospb.InstallResponse{Response: &ospb.InstallResponse_Validated{Validated: &ospb.Validated{Version: version}}},
+		},
+		{
+			desc: "install with context cancel",
+			op:   gos.NewInstallOperation().Version(version),
+			resps: []*ospb.InstallResponse{
+				{Response: &ospb.InstallResponse_Validated{Validated: &ospb.Validated{Version: version}}},
+			},
+			wantErr:       "context",
+			cancelContext: true,
+		},
+		{
+			desc: "install without ioreader returns error",
+			op:   gos.NewInstallOperation().Version(version),
+			resps: []*ospb.InstallResponse{
+				{Response: &ospb.InstallResponse_TransferReady{TransferReady: &ospb.TransferReady{}}},
+				{Response: &ospb.InstallResponse_Validated{Validated: &ospb.Validated{Version: version}}},
+			},
+			wantErr: "reader",
+		},
+		{
+			desc: "install with ioreader",
+			op:   gos.NewInstallOperation().Version(version).Reader(bytes.NewReader([]byte{0})),
+			resps: []*ospb.InstallResponse{
+				{Response: &ospb.InstallResponse_TransferReady{TransferReady: &ospb.TransferReady{}}},
+				{Response: &ospb.InstallResponse_Validated{Validated: &ospb.Validated{Version: version}}},
+			},
+			want: &ospb.InstallResponse{Response: &ospb.InstallResponse_Validated{Validated: &ospb.Validated{Version: version}}},
+		},
+		{
+			desc: "install with mismatch version error",
+			op:   gos.NewInstallOperation().Version(version).Reader(bytes.NewReader([]byte{0})),
+			resps: []*ospb.InstallResponse{
+				{Response: &ospb.InstallResponse_TransferReady{TransferReady: &ospb.TransferReady{}}},
+				{Response: &ospb.InstallResponse_Validated{Validated: &ospb.Validated{Version: version + "new"}}},
+			},
+			wantErr: "version",
 		},
 	}
 	for _, tt := range tests {
@@ -111,7 +146,13 @@ func TestInstall(t *testing.T) {
 				return &fakeInstallClient{stubRecv: tt.resps}, nil
 			}}
 
-			got, gotErr := tt.op.Execute(context.Background(), &fakeClient)
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			if tt.cancelContext {
+				cancel()
+			}
+
+			got, gotErr := tt.op.Execute(ctx, &fakeClient)
 			if (gotErr == nil) != (tt.wantErr == "") || (gotErr != nil && !strings.Contains(gotErr.Error(), tt.wantErr)) {
 				t.Errorf("Execute() got unexpected error %v want %s", gotErr, tt.wantErr)
 			}
