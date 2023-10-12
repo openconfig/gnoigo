@@ -215,14 +215,9 @@ func (r *RebootOperation) Execute(ctx context.Context, c *internal.Clients) (*sp
 		return nil, err
 	}
 
-	var subcomponents []*tpb.Path
-	if r.req.GetSubcomponents() != nil {
-		subcomponents = r.req.GetSubcomponents()
-	}
-
 	if r.waitForActive {
 		for {
-			rebootStatus, statusErr := c.System().RebootStatus(ctx, &spb.RebootStatusRequest{Subcomponents: subcomponents})
+			rebootStatus, statusErr := c.System().RebootStatus(ctx, &spb.RebootStatusRequest{Subcomponents: r.req.GetSubcomponents()})
 			var waitTime time.Duration
 
 			switch {
