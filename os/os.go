@@ -27,19 +27,19 @@ import (
 
 // InstallOperation represents the parameters of a Install operation.
 type InstallOperation struct {
-	transferReq *ospb.TransferRequest
-	reader      io.Reader
+	req    *ospb.TransferRequest
+	reader io.Reader
 }
 
 // Version identifies the OS version.
 func (i *InstallOperation) Version(version string) *InstallOperation {
-	i.transferReq.Version = version
+	i.req.Version = version
 	return i
 }
 
 // Standby specifies if supervisor is on standby.
 func (i *InstallOperation) Standby(standby bool) *InstallOperation {
-	i.transferReq.StandbySupervisor = standby
+	i.req.StandbySupervisor = standby
 	return i
 }
 
@@ -51,7 +51,7 @@ func (i *InstallOperation) Reader(reader io.Reader) *InstallOperation {
 
 // NewInstallOperation creates an empty InstallOperation.
 func NewInstallOperation() *InstallOperation {
-	return &InstallOperation{transferReq: &ospb.TransferRequest{}}
+	return &InstallOperation{req: &ospb.TransferRequest{}}
 }
 
 // awaitPackageInstall receives messages from the client until either
@@ -136,7 +136,7 @@ func (i *InstallOperation) Execute(ctx context.Context, c *internal.Clients) (*o
 
 	installReq := &ospb.InstallRequest{
 		Request: &ospb.InstallRequest_TransferRequest{
-			TransferRequest: i.transferReq,
+			TransferRequest: i.req,
 		},
 	}
 
@@ -165,8 +165,8 @@ func (i *InstallOperation) Execute(ctx context.Context, c *internal.Clients) (*o
 	if err := <-awaitChan; err != nil {
 		return nil, err
 	}
-	if gotVersion := installResp.GetValidated().GetVersion(); gotVersion != i.transferReq.Version {
-		return nil, fmt.Errorf("installed version %q does not match requested version %q", gotVersion, i.transferReq.Version)
+	if gotVersion := installResp.GetValidated().GetVersion(); gotVersion != i.req.Version {
+		return nil, fmt.Errorf("installed version %q does not match requested version %q", gotVersion, i.req.Version)
 	}
 	return installResp, nil
 }
