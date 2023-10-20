@@ -14,13 +14,11 @@ jobs:
         strategy:
             fail-fast: false
             matrix:
-                go: ['1.19', '1.20', '1.21', '1.x']
+                go: ['1.x']
 
         steps:
             - name: Build packages
               run: go build -v ./...
-              working-directory: go/src/github.com/openconfig/gnoigo
 
             - name: Run Tests
               run: go test -v ./...
-              working-directory: go/src/github.com/openconfig/gnoigo
