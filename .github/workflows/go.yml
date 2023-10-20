@@ -14,17 +14,9 @@ jobs:
         strategy:
             fail-fast: false
             matrix:
-                go: ['1.18', '1.19', '1.20', '1.21', '1.x']
+                go: ['1.19', '1.20', '1.21', '1.x']
 
         steps:
-            - name: Get dependencies
-              run: |
-                go get -v -t -d ./...
-
-            - name: Generate dependencies
-              run: make generate
-              working-directory: go/src/github.com/openconfig/gnoigo
-
             - name: Build packages
               run: go build -v ./...
               working-directory: go/src/github.com/openconfig/gnoigo
