@@ -31,12 +31,6 @@ func (s *StartOperation) ZeroFill(zf bool) *StartOperation {
 	return s
 }
 
-// RetainCerts instructs the target to retain certificates.
-func (s *StartOperation) RetainCerts(rc bool) *StartOperation {
-	s.req.RetainCerts = rc
-	return s
-}
-
 // Execute performs the Start operation.
 func (s *StartOperation) Execute(ctx context.Context, c *internal.Clients) (*frpb.StartResponse, error) {
 	return c.FactoryReset().Start(ctx, s.req)
