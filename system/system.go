@@ -22,8 +22,6 @@ import (
 
 	spb "github.com/openconfig/gnoi/system"
 	tpb "github.com/openconfig/gnoi/types"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 
 	"github.com/openconfig/gnoigo/internal"
 )
@@ -155,9 +153,7 @@ func (p *PingOperation) Execute(ctx context.Context, c *internal.Clients) ([]*sp
 
 // RebootOperation represents the parameters of a Reboot operation.
 type RebootOperation struct {
-	req                  *spb.RebootRequest
-	ignoreUnavailableErr bool
-	waitForActive        bool
+	req *spb.RebootRequest
 }
 
 // NewRebootOperation creates an empty RebootOperation.
@@ -195,52 +191,30 @@ func (r *RebootOperation) Force(force bool) *RebootOperation {
 	return r
 }
 
-// IgnoreUnavailableErr ignores unavailable errors returned by reboot status.
-func (r *RebootOperation) IgnoreUnavailableErr(ignoreUnavailableErr bool) *RebootOperation {
-	r.ignoreUnavailableErr = ignoreUnavailableErr
-	return r
-}
-
-// WaitForActive waits until RebootResponse returns active.
-func (r *RebootOperation) WaitForActive(waitForActive bool) *RebootOperation {
-	r.waitForActive = waitForActive
-	return r
-}
-
-// Execute performs the Reboot operation and will wait for rebootStatus to be active if waitForActive is set to true.
+// Execute performs the Reboot operation.
 func (r *RebootOperation) Execute(ctx context.Context, c *internal.Clients) (*spb.RebootResponse, error) {
-	resp, err := c.System().Reboot(ctx, r.req)
+	return c.System().Reboot(ctx, r.req)
+}
 
-	if err != nil {
-		return nil, err
-	}
+// RebootStatusOperation represents the parameters of a RebootStatus operation.
+type RebootStatusOperation struct {
+	req *spb.RebootStatusRequest
+}
 
-	if r.waitForActive {
-		for {
-			rebootStatus, statusErr := c.System().RebootStatus(ctx, &spb.RebootStatusRequest{Subcomponents: r.req.GetSubcomponents()})
-			var waitTime time.Duration
+// NewRebootStatusOperation creates an empty RebootStatusOperation.
+func NewRebootStatusOperation() *RebootStatusOperation {
+	return &RebootStatusOperation{req: &spb.RebootStatusRequest{}}
+}
 
-			switch {
-			case status.Code(statusErr) == codes.Unavailable && r.ignoreUnavailableErr:
-				waitTime = 10 * time.Second
-			case statusErr != nil:
-				return nil, statusErr
-			case rebootStatus.GetActive():
-				return resp, nil
-			default:
-				waitTime = time.Duration(rebootStatus.GetWait()) * time.Second
-			}
+// Subcomponents specifies the sub-components whose status will be checked.
+func (r *RebootStatusOperation) Subcomponents(subcomponents []*tpb.Path) *RebootStatusOperation {
+	r.req.Subcomponents = subcomponents
+	return r
+}
 
-			select {
-			case <-ctx.Done():
-				return nil, ctx.Err()
-			case <-time.After(waitTime):
-				continue
-			}
-		}
-	}
-
-	return resp, nil
+// Execute performs the RebootStatus operation.
+func (r *RebootStatusOperation) Execute(ctx context.Context, c *internal.Clients) (*spb.RebootStatusResponse, error) {
+	return c.System().RebootStatus(ctx, r.req)
 }
 
 // SwitchControlProcessorOperation represents the parameters of a SwitchControlProcessor operation.

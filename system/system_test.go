@@ -22,8 +22,6 @@ import (
 	"testing"
 
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/testing/protocmp"
 
 	"github.com/google/go-cmp/cmp"
@@ -180,109 +178,75 @@ func TestPing(t *testing.T) {
 }
 
 func TestReboot(t *testing.T) {
-	tests := []struct {
-		desc               string
-		op                 *system.RebootOperation
-		want               *spb.RebootResponse
-		rebootErr, wantErr string
-		statusErrs         []error
-		statusResps        []*spb.RebootStatusResponse
-		cancelContext      bool
-	}{
-		{
-			desc: "Test reboot",
-			op: system.NewRebootOperation().RebootMethod(spb.RebootMethod_COLD).Subcomponents([]*tpb.Path{{
-				Elem: []*tpb.PathElem{
-					{Name: "components"},
-					{Name: "component", Key: map[string]string{"name": "RP0"}},
-				},
-			}}),
-			want: &spb.RebootResponse{},
+	fakeSys := &fakeSystemClient{}
+	fakeClients := &internal.Clients{SystemClient: fakeSys}
+	op := system.NewRebootOperation().RebootMethod(spb.RebootMethod_COLD).Subcomponents([]*tpb.Path{{
+		Elem: []*tpb.PathElem{
+			{Name: "components"},
+			{Name: "component", Key: map[string]string{"name": "RP0"}},
 		},
-		{
-			desc:        "Test reboot wait for active status",
-			op:          system.NewRebootOperation().RebootMethod(spb.RebootMethod_COLD).WaitForActive(true),
-			statusResps: []*spb.RebootStatusResponse{{Active: true}},
-			want:        &spb.RebootResponse{},
-		},
-		{
-			desc:        "Test reboot wait for active status and ignore unavailable error",
-			op:          system.NewRebootOperation().RebootMethod(spb.RebootMethod_COLD).WaitForActive(true).IgnoreUnavailableErr(true),
-			statusErrs:  []error{status.Errorf(codes.Unavailable, "unavailable")},
-			statusResps: []*spb.RebootStatusResponse{{Active: true}},
-			want:        &spb.RebootResponse{},
-		},
-		{
-			desc:        "Test reboot with non active status response",
-			op:          system.NewRebootOperation().RebootMethod(spb.RebootMethod_COLD).WaitForActive(true),
-			statusResps: []*spb.RebootStatusResponse{{Active: false, Wait: 2}, {Active: true}},
-			want:        &spb.RebootResponse{},
-		},
-		{
-			desc:       "Test reboot wait for active status returns unknown error",
-			op:         system.NewRebootOperation().RebootMethod(spb.RebootMethod_COLD).WaitForActive(true).IgnoreUnavailableErr(true),
-			statusErrs: []error{status.Errorf(codes.Unknown, "unknown")},
-			wantErr:    "unknown",
-		},
-		{
-			desc:      "Test reboot returns error on reboot",
-			op:        system.NewRebootOperation().RebootMethod(spb.RebootMethod_COLD),
-			rebootErr: "Reboot operation error",
-			wantErr:   "Reboot operation error",
-		},
-		{
-			desc:       "Test reboot returns error on reboot status",
-			op:         system.NewRebootOperation().RebootMethod(spb.RebootMethod_COLD).WaitForActive(true),
-			statusErrs: []error{status.Errorf(codes.Unavailable, "unavailable")},
-			wantErr:    "unavailable",
-		},
-		{
-			desc:          "Test reboot with context cancel",
-			op:            system.NewRebootOperation().RebootMethod(spb.RebootMethod_COLD).WaitForActive(true),
-			statusResps:   []*spb.RebootStatusResponse{{Wait: 20}},
-			wantErr:       "context",
-			cancelContext: true,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.desc, func(t *testing.T) {
-			var fakeClient internal.Clients
-			fakeClient.SystemClient = &fakeSystemClient{
-				RebootFn: func(context.Context, *spb.RebootRequest, ...grpc.CallOption) (*spb.RebootResponse, error) {
-					if tt.rebootErr != "" {
-						return nil, fmt.Errorf(tt.rebootErr)
-					}
-					return tt.want, nil
-				},
-				RebootStatusFn: func(context.Context, *spb.RebootStatusRequest, ...grpc.CallOption) (*spb.RebootStatusResponse, error) {
-					if len(tt.statusErrs) > 0 {
-						statusErr := tt.statusErrs[0]
-						tt.statusErrs = tt.statusErrs[1:]
-						return nil, statusErr
-					}
-					if len(tt.statusResps) > 0 {
-						statusResp := tt.statusResps[0]
-						tt.statusResps = tt.statusResps[1:]
-						return statusResp, nil
-					}
-					return &spb.RebootStatusResponse{}, nil
-				}}
+	}})
 
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
-			if tt.cancelContext {
-				cancel()
-			}
+	t.Run("success", func(t *testing.T) {
+		want := &spb.RebootResponse{}
+		fakeSys.RebootFn = func(context.Context, *spb.RebootRequest, ...grpc.CallOption) (*spb.RebootResponse, error) {
+			return want, nil
+		}
+		got, gotErr := op.Execute(context.Background(), fakeClients)
+		if gotErr != nil {
+			t.Errorf("Execute() got error: %v", gotErr)
+		}
+		if want != got {
+			t.Errorf("Execute() got unexpected response want %v got %v", want, got)
+		}
+	})
 
-			got, gotErr := tt.op.Execute(ctx, &fakeClient)
-			if (gotErr == nil) != (tt.wantErr == "") || (gotErr != nil && !strings.Contains(gotErr.Error(), tt.wantErr)) {
-				t.Errorf("Execute() got unexpected error %v want %s", gotErr, tt.wantErr)
-			}
-			if tt.want != got {
-				t.Errorf("Execute() got unexpected response want %v got %v", tt.want, got)
-			}
-		})
-	}
+	t.Run("failure", func(t *testing.T) {
+		wantErr := "reboot error"
+		fakeSys.RebootFn = func(context.Context, *spb.RebootRequest, ...grpc.CallOption) (*spb.RebootResponse, error) {
+			return nil, fmt.Errorf(wantErr)
+		}
+		_, gotErr := op.Execute(context.Background(), fakeClients)
+		if gotErr == nil || !strings.Contains(gotErr.Error(), wantErr) {
+			t.Errorf("Execute() got error %v, want %s", gotErr, wantErr)
+		}
+	})
+}
+
+func TestRebootStatus(t *testing.T) {
+	fakeSys := &fakeSystemClient{}
+	fakeClients := &internal.Clients{SystemClient: fakeSys}
+	op := system.NewRebootStatusOperation().Subcomponents([]*tpb.Path{{
+		Elem: []*tpb.PathElem{
+			{Name: "components"},
+			{Name: "component", Key: map[string]string{"name": "RP0"}},
+		},
+	}})
+
+	t.Run("success", func(t *testing.T) {
+		want := &spb.RebootStatusResponse{}
+		fakeSys.RebootStatusFn = func(context.Context, *spb.RebootStatusRequest, ...grpc.CallOption) (*spb.RebootStatusResponse, error) {
+			return want, nil
+		}
+		got, gotErr := op.Execute(context.Background(), fakeClients)
+		if gotErr != nil {
+			t.Errorf("Execute() got error: %v", gotErr)
+		}
+		if want != got {
+			t.Errorf("Execute() got unexpected response want %v got %v", want, got)
+		}
+	})
+
+	t.Run("failure", func(t *testing.T) {
+		wantErr := "reboot status error"
+		fakeSys.RebootStatusFn = func(context.Context, *spb.RebootStatusRequest, ...grpc.CallOption) (*spb.RebootStatusResponse, error) {
+			return nil, fmt.Errorf(wantErr)
+		}
+		_, gotErr := op.Execute(context.Background(), fakeClients)
+		if gotErr == nil || !strings.Contains(gotErr.Error(), wantErr) {
+			t.Errorf("Execute() got error %v, want %s", gotErr, wantErr)
+		}
+	})
 }
 
 func TestSwitchControlProcessor(t *testing.T) {
