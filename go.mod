@@ -1,6 +1,6 @@
 module github.com/openconfig/gnoigo
 
-go 1.18
+go 1.21
 
 require (
 	github.com/golang/glog v1.1.0
