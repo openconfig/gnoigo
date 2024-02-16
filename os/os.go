@@ -25,6 +25,42 @@ import (
 	"github.com/openconfig/gnoigo/internal"
 )
 
+// ActivateOperation represents the parameters of a Activate operation.
+type ActivateOperation struct {
+	req *ospb.ActivateRequest
+}
+
+// Version specifies the OS version that is required to be activated.
+func (a *ActivateOperation) Version(version string) *ActivateOperation {
+	a.req.Version = version
+	return a
+}
+
+// Standby specifies whether to activate the standby supervisor.
+func (a *ActivateOperation) Standby(standby bool) *ActivateOperation {
+	a.req.StandbySupervisor = standby
+	return a
+}
+
+// NoReboot specifies whether to skip an immediate reboot after changing the
+// next bootable OS version. If false, an immediate reboot is initiated after
+// changing the activated OS version. If true, a separate action to reboot is
+// required to start using the activated OS version.
+func (a *ActivateOperation) NoReboot(noReboot bool) *ActivateOperation {
+	a.req.NoReboot = noReboot
+	return a
+}
+
+// NewActivateOperation creates an empty ActivateOperation.
+func NewActivateOperation() *ActivateOperation {
+	return &ActivateOperation{req: &ospb.ActivateRequest{}}
+}
+
+// Execute performs the Activate operation.
+func (a *ActivateOperation) Execute(ctx context.Context, c *internal.Clients) (*ospb.ActivateResponse, error) {
+	return c.OS().Activate(ctx, a.req)
+}
+
 // InstallOperation represents the parameters of a Install operation.
 type InstallOperation struct {
 	req    *ospb.TransferRequest
@@ -169,4 +205,19 @@ func (i *InstallOperation) Execute(ctx context.Context, c *internal.Clients) (*o
 		return nil, fmt.Errorf("installed version %q does not match requested version %q", gotVersion, i.req.Version)
 	}
 	return installResp, nil
+}
+
+// VerifyOperation represents the parameters of a Verify operation.
+type VerifyOperation struct {
+	req *ospb.VerifyRequest
+}
+
+// NewVerifyOperation creates an empty VerifyOperation.
+func NewVerifyOperation() *VerifyOperation {
+	return &VerifyOperation{req: &ospb.VerifyRequest{}}
+}
+
+// Execute performs the Verify operation.
+func (v *VerifyOperation) Execute(ctx context.Context, c *internal.Clients) (*ospb.VerifyResponse, error) {
+	return c.OS().Verify(ctx, v.req)
 }
