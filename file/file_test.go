@@ -17,6 +17,8 @@ package file_test
 import (
 	"context"
 	"crypto/sha256"
+	"os"
+	"path"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -63,7 +65,21 @@ func (*fakePutClient) CloseSend() error {
 	return nil
 }
 
+func generateFile(t *testing.T, data string) string {
+	// Create a temporary file
+	fileName := path.Join(t.TempDir(), "data")
+
+	// Write some text to the file
+	if err := os.WriteFile(fileName, []byte(data), 0644); err != nil {
+		t.Fatalf("unable to write temp file contents: %v", err)
+	}
+
+	return fileName
+}
+
 func TestPut(t *testing.T) {
+	const data = "some really important data"
+	fileName := generateFile(t, data)
 	hash := sha256.New()
 	_, err := hash.Write([]byte(`some really important data`))
 	if err != nil {
@@ -82,7 +98,7 @@ func TestPut(t *testing.T) {
 		},
 		{
 			desc: "put-with-file",
-			op:   file.NewPutOperation().SourceFile("testdata/data.txt"),
+			op:   file.NewPutOperation().SourceFile(fileName),
 			wantReq: []*fpb.PutRequest{
 				{
 					Request: &fpb.PutRequest_Open{
@@ -91,7 +107,7 @@ func TestPut(t *testing.T) {
 				},
 				{
 					Request: &fpb.PutRequest_Contents{
-						Contents: []byte(`some really important data`),
+						Contents: []byte(data),
 					},
 				},
 				{
@@ -106,7 +122,7 @@ func TestPut(t *testing.T) {
 		},
 		{
 			desc: "put-with-all-details",
-			op:   file.NewPutOperation().SourceFile("testdata/data.txt").RemoteFile("/tmp/here").Perms(644),
+			op:   file.NewPutOperation().SourceFile(fileName).RemoteFile("/tmp/here").Perms(644),
 			wantReq: []*fpb.PutRequest{
 				{
 					Request: &fpb.PutRequest_Open{
@@ -118,7 +134,7 @@ func TestPut(t *testing.T) {
 				},
 				{
 					Request: &fpb.PutRequest_Contents{
-						Contents: []byte(`some really important data`),
+						Contents: []byte(data),
 					},
 				},
 				{
