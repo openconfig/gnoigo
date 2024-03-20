@@ -21,9 +21,10 @@ import (
 	"path"
 	"testing"
 
-	"github.com/google/go-cmp/cmp"
 	fpb "github.com/openconfig/gnoi/file"
-	"github.com/openconfig/gnoi/types"
+	tpb "github.com/openconfig/gnoi/types"
+
+	"github.com/google/go-cmp/cmp"
 	"github.com/openconfig/gnoigo/file"
 	"github.com/openconfig/gnoigo/internal"
 	"google.golang.org/grpc"
@@ -57,7 +58,7 @@ func (fc *fakePutClient) Recv() (*fpb.PutResponse, error) {
 	return &fpb.PutResponse{}, nil
 }
 
-func (fv *fakePutClient) CloseAndRecv() (*fpb.PutResponse, error) {
+func (fc *fakePutClient) CloseAndRecv() (*fpb.PutResponse, error) {
 	return &fpb.PutResponse{}, nil
 }
 
@@ -112,8 +113,8 @@ func TestPut(t *testing.T) {
 				},
 				{
 					Request: &fpb.PutRequest_Hash{
-						Hash: &types.HashType{
-							Method: types.HashType_SHA256,
+						Hash: &tpb.HashType{
+							Method: tpb.HashType_SHA256,
 							Hash:   hash.Sum(nil),
 						},
 					},
@@ -139,8 +140,8 @@ func TestPut(t *testing.T) {
 				},
 				{
 					Request: &fpb.PutRequest_Hash{
-						Hash: &types.HashType{
-							Method: types.HashType_SHA256,
+						Hash: &tpb.HashType{
+							Method: tpb.HashType_SHA256,
 							Hash:   hash.Sum(nil),
 						},
 					},
