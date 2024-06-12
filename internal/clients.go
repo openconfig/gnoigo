@@ -36,7 +36,7 @@ import (
 type Clients struct {
 	BGPClient              bpb.BGPClient
 	CertMgmtClient         cmpb.CertificateManagementClient
-	ContainerZClient       cpb.ContainerzClient
+	ContainerzClient       cpb.ContainerzClient
 	DiagClient             dpb.DiagClient
 	FactoryResetClient     frpb.FactoryResetClient
 	FileClient             fpb.FileClient
@@ -62,7 +62,7 @@ func (c *Clients) CertificateManagement() cmpb.CertificateManagementClient {
 
 // Containerz returns the client for gNOI Containerz service.
 func (c *Clients) Containerz() cpb.ContainerzClient {
-	return c.ContainerZClient
+	return c.ContainerzClient
 }
 
 // Diag returns the client for gNOI Diag service.

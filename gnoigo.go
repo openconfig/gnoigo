@@ -42,7 +42,7 @@ func NewClients(conn *grpc.ClientConn) Clients {
 	return &internal.Clients{
 		BGPClient:              bpb.NewBGPClient(conn),
 		CertMgmtClient:         cmpb.NewCertificateManagementClient(conn),
-		ContainerZClient:       cpb.NewContainerzClient(conn),
+		ContainerzClient:       cpb.NewContainerzClient(conn),
 		DiagClient:             dpb.NewDiagClient(conn),
 		FactoryResetClient:     frpb.NewFactoryResetClient(conn),
 		FileClient:             fpb.NewFileClient(conn),
@@ -87,7 +87,7 @@ func toInternalClients(c Clients) *internal.Clients {
 	return &internal.Clients{
 		BGPClient:              c.BGP(),
 		CertMgmtClient:         c.CertificateManagement(),
-		ContainerZClient:       c.Containerz(),
+		ContainerzClient:       c.Containerz(),
 		DiagClient:             c.Diag(),
 		FactoryResetClient:     c.FactoryReset(),
 		FileClient:             c.File(),
