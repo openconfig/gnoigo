@@ -18,6 +18,7 @@ package internal
 import (
 	bpb "github.com/openconfig/gnoi/bgp"
 	cmpb "github.com/openconfig/gnoi/cert"
+	cpb "github.com/openconfig/gnoi/containerz"
 	dpb "github.com/openconfig/gnoi/diag"
 	frpb "github.com/openconfig/gnoi/factory_reset"
 	fpb "github.com/openconfig/gnoi/file"
@@ -35,6 +36,7 @@ import (
 type Clients struct {
 	BGPClient              bpb.BGPClient
 	CertMgmtClient         cmpb.CertificateManagementClient
+	ContainerzClient       cpb.ContainerzClient
 	DiagClient             dpb.DiagClient
 	FactoryResetClient     frpb.FactoryResetClient
 	FileClient             fpb.FileClient
@@ -56,6 +58,11 @@ func (c *Clients) BGP() bpb.BGPClient {
 // CertificateManagement returns the client for gNOI Certificate Management service.
 func (c *Clients) CertificateManagement() cmpb.CertificateManagementClient {
 	return c.CertMgmtClient
+}
+
+// Containerz returns the client for gNOI Containerz service.
+func (c *Clients) Containerz() cpb.ContainerzClient {
+	return c.ContainerzClient
 }
 
 // Diag returns the client for gNOI Diag service.
