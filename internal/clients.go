@@ -18,6 +18,7 @@ package internal
 import (
 	bpb "github.com/openconfig/gnoi/bgp"
 	cmpb "github.com/openconfig/gnoi/cert"
+	dbgpb "github.com/openconfig/gnoi/debug"
 	dpb "github.com/openconfig/gnoi/diag"
 	frpb "github.com/openconfig/gnoi/factory_reset"
 	fpb "github.com/openconfig/gnoi/file"
@@ -46,6 +47,7 @@ type Clients struct {
 	OTDRClient             otpb.OTDRClient
 	SystemClient           spb.SystemClient
 	WavelengthRouterClient wrpb.WavelengthRouterClient
+	DebugClient            dbgpb.DebugClient
 }
 
 // BGP returns the client for gNOI BGP service.
@@ -111,4 +113,9 @@ func (c *Clients) System() spb.SystemClient {
 // WavelengthRouter returns the client for gNOI WavelengthRouter service.
 func (c *Clients) WavelengthRouter() wrpb.WavelengthRouterClient {
 	return c.WavelengthRouterClient
+}
+
+// Debug returns the client for gNOI Debug service.
+func (c *Clients) DEBUG() dbgpb.DebugClient {
+	return c.DebugClient
 }
