@@ -22,6 +22,7 @@ import (
 
 	bpb "github.com/openconfig/gnoi/bgp"
 	cmpb "github.com/openconfig/gnoi/cert"
+	dbgpb "github.com/openconfig/gnoi/debug"
 	dpb "github.com/openconfig/gnoi/diag"
 	frpb "github.com/openconfig/gnoi/factory_reset"
 	fpb "github.com/openconfig/gnoi/file"
@@ -52,6 +53,7 @@ func NewClients(conn *grpc.ClientConn) Clients {
 		OTDRClient:             otpb.NewOTDRClient(conn),
 		SystemClient:           spb.NewSystemClient(conn),
 		WavelengthRouterClient: wrpb.NewWavelengthRouterClient(conn),
+		DebugClient:            dbgpb.NewDebugClient(conn),
 	}
 }
 
@@ -70,6 +72,7 @@ type Clients interface {
 	OTDR() otpb.OTDRClient
 	System() spb.SystemClient
 	WavelengthRouter() wrpb.WavelengthRouterClient
+	DEBUG() dbgpb.DebugClient
 }
 
 // Operation represents any gNOI operation.
@@ -95,6 +98,7 @@ func toInternalClients(c Clients) *internal.Clients {
 		OTDRClient:             c.OTDR(),
 		SystemClient:           c.System(),
 		WavelengthRouterClient: c.WavelengthRouter(),
+		DebugClient:            c.DEBUG(),
 	}
 }
 
