@@ -22,6 +22,7 @@ import (
 
 	bpb "github.com/openconfig/gnoi/bgp"
 	cmpb "github.com/openconfig/gnoi/cert"
+	cpb "github.com/openconfig/gnoi/containerz"
 	dpb "github.com/openconfig/gnoi/diag"
 	frpb "github.com/openconfig/gnoi/factory_reset"
 	fpb "github.com/openconfig/gnoi/file"
@@ -41,6 +42,7 @@ func NewClients(conn *grpc.ClientConn) Clients {
 	return &internal.Clients{
 		BGPClient:              bpb.NewBGPClient(conn),
 		CertMgmtClient:         cmpb.NewCertificateManagementClient(conn),
+		ContainerzClient:       cpb.NewContainerzClient(conn),
 		DiagClient:             dpb.NewDiagClient(conn),
 		FactoryResetClient:     frpb.NewFactoryResetClient(conn),
 		FileClient:             fpb.NewFileClient(conn),
@@ -59,6 +61,7 @@ func NewClients(conn *grpc.ClientConn) Clients {
 type Clients interface {
 	BGP() bpb.BGPClient
 	CertificateManagement() cmpb.CertificateManagementClient
+	Containerz() cpb.ContainerzClient
 	Diag() dpb.DiagClient
 	FactoryReset() frpb.FactoryResetClient
 	File() fpb.FileClient
@@ -84,6 +87,7 @@ func toInternalClients(c Clients) *internal.Clients {
 	return &internal.Clients{
 		BGPClient:              c.BGP(),
 		CertMgmtClient:         c.CertificateManagement(),
+		ContainerzClient:       c.Containerz(),
 		DiagClient:             c.Diag(),
 		FactoryResetClient:     c.FactoryReset(),
 		FileClient:             c.File(),
