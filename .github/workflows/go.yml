@@ -7,16 +7,23 @@ on:
   schedule:
     - cron: "0 0 * * *"
 
+permissions: {}
+
 jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-      - name: Set up Go
-        uses: actions/setup-go@v6.0.0
-        with:
-          go-version: 1.25.x
-      - name: Build
-        run: go build -v ./...
-      - name: Run Tests
-        run: go test -v ./...
+    build:
+        runs-on: ubuntu-latest
+
+        permissions:
+          contents: read
+          packages: read
+      
+        steps:
+            - uses: actions/checkout@v5
+            - name: Set up Go
+              uses: actions/setup-go@v6.0.0
+              with:
+                go-version: 1.25.x
+            - name: Build
+              run: go build -v ./...
+            - name: Run Tests
+              run: go test -v ./...
