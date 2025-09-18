@@ -169,6 +169,9 @@ func (r *RebootOperation) RebootMethod(rebootMethod spb.RebootMethod) *RebootOpe
 
 // Delay specifies time in nanoseconds to wait before issuing reboot.
 func (r *RebootOperation) Delay(delay time.Duration) *RebootOperation {
+	if delay < 0 {
+		delay = 0
+	}
 	r.req.Delay = uint64(delay.Nanoseconds())
 	return r
 }

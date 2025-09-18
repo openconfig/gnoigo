@@ -137,13 +137,13 @@ func transferContent(ctx context.Context, ic ospb.OS_InstallClient, reader io.Re
 		}
 		n, err := reader.Read(buf)
 		if n > 0 {
-			if err := ic.Send(
+			if sendErr := ic.Send(
 				&ospb.InstallRequest{
 					Request: &ospb.InstallRequest_TransferContent{
 						TransferContent: buf[0:n],
 					},
 				},
-			); err != nil {
+			); sendErr != nil {
 				return err
 			}
 		}
