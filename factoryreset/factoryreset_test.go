@@ -16,7 +16,7 @@ package factoryreset_test
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"strings"
 	"testing"
 
@@ -63,7 +63,7 @@ func TestFactoryResetStart(t *testing.T) {
 			var fakeClient internal.Clients
 			fakeClient.FactoryResetClient = &fakeFactoryResetClient{StartFn: func(context.Context, *frpb.StartRequest, ...grpc.CallOption) (*frpb.StartResponse, error) {
 				if tt.wantErr != "" {
-					return nil, fmt.Errorf(tt.wantErr)
+					return nil, errors.New(tt.wantErr)
 				}
 				return tt.want, nil
 			}}

@@ -16,7 +16,7 @@ package system_test
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"io"
 	"strings"
 	"testing"
@@ -97,7 +97,7 @@ func TestKillProcess(t *testing.T) {
 			var fakeClient internal.Clients
 			fakeClient.SystemClient = &fakeSystemClient{KillProcessFn: func(context.Context, *spb.KillProcessRequest, ...grpc.CallOption) (*spb.KillProcessResponse, error) {
 				if tt.wantErr != "" {
-					return nil, fmt.Errorf(tt.wantErr)
+					return nil, errors.New(tt.wantErr)
 				}
 				return tt.want, nil
 			}}
@@ -161,7 +161,7 @@ func TestPing(t *testing.T) {
 			var fakeClient internal.Clients
 			fakeClient.SystemClient = &fakeSystemClient{PingFn: func(context.Context, *spb.PingRequest, ...grpc.CallOption) (spb.System_PingClient, error) {
 				if tt.wantErr != "" {
-					return nil, fmt.Errorf(tt.wantErr)
+					return nil, errors.New(tt.wantErr)
 				}
 				return &fakePingClient{resp: tt.want}, nil
 			}}
@@ -204,7 +204,7 @@ func TestReboot(t *testing.T) {
 	t.Run("failure", func(t *testing.T) {
 		wantErr := "reboot error"
 		fakeSys.RebootFn = func(context.Context, *spb.RebootRequest, ...grpc.CallOption) (*spb.RebootResponse, error) {
-			return nil, fmt.Errorf(wantErr)
+			return nil, errors.New(wantErr)
 		}
 		_, gotErr := op.Execute(context.Background(), fakeClients)
 		if gotErr == nil || !strings.Contains(gotErr.Error(), wantErr) {
@@ -240,7 +240,7 @@ func TestRebootStatus(t *testing.T) {
 	t.Run("failure", func(t *testing.T) {
 		wantErr := "reboot status error"
 		fakeSys.RebootStatusFn = func(context.Context, *spb.RebootStatusRequest, ...grpc.CallOption) (*spb.RebootStatusResponse, error) {
-			return nil, fmt.Errorf(wantErr)
+			return nil, errors.New(wantErr)
 		}
 		_, gotErr := op.Execute(context.Background(), fakeClients)
 		if gotErr == nil || !strings.Contains(gotErr.Error(), wantErr) {
@@ -293,7 +293,7 @@ func TestSwitchControlProcessor(t *testing.T) {
 			var fakeClient internal.Clients
 			fakeClient.SystemClient = &fakeSystemClient{SwitchControlProcessorFn: func(context.Context, *spb.SwitchControlProcessorRequest, ...grpc.CallOption) (*spb.SwitchControlProcessorResponse, error) {
 				if tt.wantErr != "" {
-					return nil, fmt.Errorf(tt.wantErr)
+					return nil, errors.New(tt.wantErr)
 				}
 				return tt.want, nil
 			}}
@@ -332,7 +332,7 @@ func TestTime(t *testing.T) {
 			var fakeClient internal.Clients
 			fakeClient.SystemClient = &fakeSystemClient{TimeFn: func(context.Context, *spb.TimeRequest, ...grpc.CallOption) (*spb.TimeResponse, error) {
 				if tt.wantErr != "" {
-					return nil, fmt.Errorf(tt.wantErr)
+					return nil, errors.New(tt.wantErr)
 				}
 				return tt.want, nil
 			}}
@@ -391,7 +391,7 @@ func TestTraceroute(t *testing.T) {
 			var fakeClient internal.Clients
 			fakeClient.SystemClient = &fakeSystemClient{TracerouteFn: func(context.Context, *spb.TracerouteRequest, ...grpc.CallOption) (spb.System_TracerouteClient, error) {
 				if tt.wantErr != "" {
-					return nil, fmt.Errorf(tt.wantErr)
+					return nil, errors.New(tt.wantErr)
 				}
 				return &fakeTracerouteClient{resp: tt.want}, nil
 			}}
