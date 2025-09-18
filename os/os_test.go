@@ -18,7 +18,6 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -102,7 +101,7 @@ func TestActivate(t *testing.T) {
 			var fakeClient internal.Clients
 			fakeClient.OSClient = &fakeOSClient{ActivateFn: func(context.Context, *ospb.ActivateRequest, ...grpc.CallOption) (*ospb.ActivateResponse, error) {
 				if tt.wantErr != "" {
-					return nil, fmt.Errorf(tt.wantErr)
+					return nil, errors.New(tt.wantErr)
 				}
 				return tt.want, nil
 			}}
@@ -199,7 +198,7 @@ func TestInstall(t *testing.T) {
 			var fakeClient internal.Clients
 			fakeClient.OSClient = &fakeOSClient{InstallFn: func(context.Context, ...grpc.CallOption) (ospb.OS_InstallClient, error) {
 				if tt.installErr != "" {
-					return nil, fmt.Errorf(tt.installErr)
+					return nil, errors.New(tt.installErr)
 				}
 				return &fakeInstallClient{stubRecv: tt.resps}, nil
 			}}
@@ -244,7 +243,7 @@ func TestVerify(t *testing.T) {
 			var fakeClient internal.Clients
 			fakeClient.OSClient = &fakeOSClient{VerifyFn: func(context.Context, *ospb.VerifyRequest, ...grpc.CallOption) (*ospb.VerifyResponse, error) {
 				if tt.wantErr != "" {
-					return nil, fmt.Errorf(tt.wantErr)
+					return nil, errors.New(tt.wantErr)
 				}
 				return tt.want, nil
 			}}

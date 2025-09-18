@@ -155,7 +155,7 @@ func TestPut(t *testing.T) {
 			fpc := &fakePutClient{}
 			var fakeClient internal.Clients
 			fakeClient.FileClient = &fakeFileClient{
-				PutFn: func(ctx context.Context, opts ...grpc.CallOption) (fpb.File_PutClient, error) {
+				PutFn: func(_ context.Context, _ ...grpc.CallOption) (fpb.File_PutClient, error) {
 					return fpc, nil
 				},
 			}
